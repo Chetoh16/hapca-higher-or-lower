@@ -7,6 +7,7 @@ import { ScoreBar } from './components/ScoreBar';
 import { ResultScreen } from './components/ResultScreen';
 import { Leaderboard } from './components/Leaderboard';
 import { useGameData } from './hooks/useGameData';
+import { useSound } from './hooks/useSound';
 import {
   SELECTED_FIRST_BLOCKS,
   pickRandom,
@@ -14,15 +15,16 @@ import {
   addToLeaderboard,
   getLeaderboard,
   getHighScore,
+  getPlayerBestScore,
 } from './utils/gameLogic';
 import type { Block, GameState, MetricKey } from './types';
 import './App.css';
 
-// default metric is currently fce_total since that's the most intuitive one
 const DEFAULT_METRIC: MetricKey = 'fce_total';
 
 function App() {
   const { blocks, loading, error } = useGameData(DEFAULT_METRIC);
+  const { playCorrect, playWrong, playTick } = useSound();
 
   const [state, setState] = useState<GameState>({
     phase: 'name-entry',
@@ -37,15 +39,13 @@ function App() {
     lastAnswerCorrect: null,
   });
 
+  // Force re-render of leaderboard after import
+  const [lbKey, setLbKey] = useState(0);
+
   const selectedQueueRef = useRef<string[]>([...SELECTED_FIRST_BLOCKS]);
 
-  // Helpers 
-
-  // pick the next block and show selected queue first, then random
   const pickNext = useCallback(
     (exclude: Set<string>): Block | null => {
-      
-      // drain selected queue
       while (selectedQueueRef.current.length > 0) {
         const id = selectedQueueRef.current.shift()!;
         const b = blocks.find((bl) => bl.blockID === id);
@@ -56,8 +56,8 @@ function App() {
     [blocks],
   );
 
-  // game starts here after name entry
-  const handleStart = useCallback(
+  // Start / restart as a given name
+  const startGame = useCallback(
     (name: string) => {
       selectedQueueRef.current = [...SELECTED_FIRST_BLOCKS];
       const used = new Set<string>();
@@ -71,6 +71,8 @@ function App() {
         phase: 'playing',
         playerName: name,
         score: 0,
+        // Show this player's personal best (or global high score if higher)
+        highScore: Math.max(getHighScore(), getPlayerBestScore(name)),
         currentLeft: left,
         currentRight: right,
         usedBlockIds: used,
@@ -81,45 +83,53 @@ function App() {
     [pickNext],
   );
 
-  // handle a guess
-  const handleGuess = useCallback(
-    (guess: 'higher' | 'lower') => {
-      setState((s) => {
-        if (!s.currentLeft || !s.currentRight || s.isAnimating) return s;
+  const handleStart = useCallback((name: string) => startGame(name), [startGame]);
 
-        const leftVal = getMetricValue(s.currentLeft, s.currentMetric);
-        const rightVal = getMetricValue(s.currentRight, s.currentMetric);
+  // "Play again as X" — same name, fresh game
+  const handleContinueAs = useCallback(() => {
+    startGame(state.playerName);
+  }, [startGame, state.playerName]);
 
-        const correct =
-          guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
+  // "Change name" — back to name-entry
+  const handleRestart = useCallback(() => {
+    setState((s) => ({
+      ...s,
+      phase: 'name-entry',
+      score: 0,
+      highScore: getHighScore(),
+    }));
+  }, []);
 
-        if (!correct) {
-          // wrong answer: show result briefly, then go to result screen
-          return { ...s, isAnimating: true, lastAnswerCorrect: false };
-        }
+  // Guess handler
+  const handleGuess = useCallback((guess: 'higher' | 'lower') => {
+    setState((s) => {
+      if (!s.currentLeft || !s.currentRight || s.isAnimating) return s;
+      const leftVal = getMetricValue(s.currentLeft, s.currentMetric);
+      const rightVal = getMetricValue(s.currentRight, s.currentMetric);
+      const correct = guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
+      return { ...s, isAnimating: true, lastAnswerCorrect: correct };
+    });
+  }, []);
 
-        // correct answer: reveal value, then slide
-        return { ...s, isAnimating: true, lastAnswerCorrect: true };
-      });
-    },
-    [],
-  );
-
-  // handle animation completion: either advance to next pair (if correct) or go to result screen (if wrong)
   useEffect(() => {
     if (!state.isAnimating) return;
+
+    // Play sound immediately when answer is known
+    if (state.lastAnswerCorrect) {
+      playCorrect();
+    } else {
+      playWrong();
+    }
 
     const delay = state.lastAnswerCorrect ? 1200 : 1400;
 
     const timer = setTimeout(() => {
       if (!state.lastAnswerCorrect) {
-        // wrong answer: add to leaderboard, go to result
-        const entry = {
+        addToLeaderboard({
           name: state.playerName,
           score: state.score,
           timestamp: new Date().toISOString(),
-        };
-        addToLeaderboard(entry);
+        });
         setState((s) => ({
           ...s,
           phase: 'result',
@@ -127,20 +137,17 @@ function App() {
           isAnimating: false,
         }));
       } else {
-        // correct answer: advance: right becomes left, pick new right
         setState((s) => {
           const newUsed = new Set(s.usedBlockIds);
           const newLeft = s.currentRight!;
           const newRight = pickNext(newUsed);
 
           if (!newRight) {
-            // all blocks exhausted: game complete (treat as win, go to result)
-            const entry = {
+            addToLeaderboard({
               name: s.playerName,
               score: s.score + 1,
               timestamp: new Date().toISOString(),
-            };
-            addToLeaderboard(entry);
+            });
             return {
               ...s,
               score: s.score + 1,
@@ -165,19 +172,10 @@ function App() {
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [state.isAnimating, state.lastAnswerCorrect, pickNext]);
+  // playCorrect/playWrong are stable refs, safe to include
+  }, [state.isAnimating, state.lastAnswerCorrect, pickNext, playCorrect, playWrong]);
 
-  // restart the game
-  const handleRestart = useCallback(() => {
-    setState((s) => ({
-      ...s,
-      phase: 'name-entry',
-      score: 0,
-      highScore: getHighScore(),
-    }));
-  }, []);
-
-  // loading and error states
+  // Loading / error
   if (loading) {
     return (
       <div className="app-loading">
@@ -196,6 +194,9 @@ function App() {
 
   return (
     <div className="app-root">
+      <div className="team-badge">
+        Team 3
+      </div>
       <AnimatePresence mode="wait">
         {state.phase === 'name-entry' && (
           <NameEntry key="name-entry" onStart={handleStart} />
@@ -213,10 +214,7 @@ function App() {
             <GameCard
               block={state.currentRight}
               side="right"
-
-              // reveal value while animating result
-              revealed={state.isAnimating} 
-              
+              revealed={state.isAnimating}
               metric={state.currentMetric}
               onHigher={() => handleGuess('higher')}
               onLower={() => handleGuess('lower')}
@@ -238,19 +236,19 @@ function App() {
             highScore={state.highScore}
             playerName={state.playerName}
             onRestart={handleRestart}
-            onLeaderboard={() =>
-              setState((s) => ({ ...s, phase: 'leaderboard' }))
-            }
+            onContinueAs={handleContinueAs}
+            onLeaderboard={() => setState((s) => ({ ...s, phase: 'leaderboard' }))}
           />
         )}
 
         {state.phase === 'leaderboard' && (
           <Leaderboard
-            key="leaderboard"
+            key={`leaderboard-${lbKey}`}
             entries={getLeaderboard()}
             currentPlayerName={state.playerName}
             onBack={() => setState((s) => ({ ...s, phase: 'result' }))}
             onRestart={handleRestart}
+            onImported={() => setLbKey((k) => k + 1)}
           />
         )}
       </AnimatePresence>

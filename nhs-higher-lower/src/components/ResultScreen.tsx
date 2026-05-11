@@ -1,19 +1,26 @@
 import { motion } from 'framer-motion';
-import { RotateCcw, Trophy, TrendingDown } from 'lucide-react';
+import { RotateCcw, Trophy, TrendingDown, UserCheck } from 'lucide-react';
+import { useSound } from '../hooks/useSound';
 
 // placeholder loss images/gifs
 // add something funnier
 const LOSS_IMAGES: string[] = [
-  'https://media.giphy.com/media/3o7TKMt1VVNkHV2PaE/giphy.gif',
-  'https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif',
-  'https://media.giphy.com/media/26ufnwz3wDUli7GU0/giphy.gif',
+  'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNml1MWoxaTU0cnlrbWpocmtrdzI3dmR2eXg1amdsOXAzYWExcWI1OSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/qiw4VaWbXYDQqK6mgm/giphy.gif',
 ];
+
+const chosenImg = LOSS_IMAGES[Math.floor(Math.random() * LOSS_IMAGES.length)];
 
 interface Props {
   score: number;
   highScore: number;
   playerName: string;
+
+   // go to name-entry screen
   onRestart: () => void;
+
+  // replay immediately as same player
+  onContinueAs: () => void;
+
   onLeaderboard: () => void;
 }
 
@@ -22,10 +29,11 @@ export function ResultScreen({
   highScore,
   playerName,
   onRestart,
+  onContinueAs,
   onLeaderboard,
 }: Props) {
-  const imgSrc = LOSS_IMAGES[Math.floor(Math.random() * LOSS_IMAGES.length)];
   const isNewHighScore = score > 0 && score >= highScore;
+  const { playTick } = useSound();
 
   return (
     <motion.div
@@ -40,13 +48,9 @@ export function ResultScreen({
         animate={{ scale: 1, y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        {/* Reaction image / gif */}
+        {/* Reaction gif */}
         <div className="result-img-wrap">
-          <img
-            src={imgSrc}
-            alt="Game over reaction"
-            className="result-img"
-          />
+          <img src={chosenImg} alt="Game over reaction" className="result-img" />
         </div>
 
         <div className="result-icon-row">
@@ -56,7 +60,7 @@ export function ResultScreen({
         <h2 className="result-title">Unlucky, {playerName}!</h2>
         <p className="result-subtitle">Your answer was wrong.</p>
 
-        {/* Score display */}
+        {/* Scores */}
         <div className="result-scores">
           <div className="result-score-box">
             <span className="result-score-label">Your score</span>
@@ -92,24 +96,44 @@ export function ResultScreen({
           </motion.div>
         )}
 
-        {/* CTA buttons */}
+        {/* Buttons for replaying */}
+        <motion.button
+          className="result-btn result-btn--continue"
+          onClick={() => {
+            playTick();
+            onContinueAs();
+          }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          
+        >
+          <UserCheck size={18} />
+          Play again as {playerName}
+        </motion.button>
+
         <div className="result-actions">
           <motion.button
-            className="result-btn result-btn--primary"
-            onClick={onRestart}
+            className="result-btn result-btn--secondary"
+            onClick={() => {
+              playTick();
+              onRestart();
+            }}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
           >
-            <RotateCcw size={18} />
-            Play Again
+            <RotateCcw size={16} />
+            Change name
           </motion.button>
           <motion.button
             className="result-btn result-btn--secondary"
-            onClick={onLeaderboard}
+            onClick={() => {
+              playTick();
+              onLeaderboard();
+            }}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
           >
-            <Trophy size={18} />
+            <Trophy size={16} />
             Leaderboard
           </motion.button>
         </div>

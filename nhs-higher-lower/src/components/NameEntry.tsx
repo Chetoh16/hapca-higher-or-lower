@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, ChevronRight } from 'lucide-react';
+import { useSound } from '../hooks/useSound';
 
 interface Props {
   onStart: (name: string) => void;
@@ -8,6 +9,7 @@ interface Props {
 
 export function NameEntry({ onStart }: Props) {
   const [name, setName] = useState('');
+  const { playTick } = useSound();
 
   const handleSubmit = () => {
     const trimmed = name.trim();
@@ -44,7 +46,7 @@ export function NameEntry({ onStart }: Props) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          Can you guess which condition sends more people to hospital?
+          Can you guess which condition / disease sends more people to hospital?
         </motion.p>
 
         <motion.div
@@ -66,7 +68,10 @@ export function NameEntry({ onStart }: Props) {
           />
           <motion.button
             className="start-btn"
-            onClick={handleSubmit}
+            onClick={() => {
+              playTick();
+              handleSubmit();
+            }}
             disabled={name.trim().length === 0}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
