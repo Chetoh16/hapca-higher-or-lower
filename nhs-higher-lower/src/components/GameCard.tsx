@@ -31,6 +31,9 @@ export function GameCard({
     const value = getMetricValue(block, metric);
     const metricConfig = METRICS.find((m) => m.key === metric)!;
 
+    // badge only shows on the RIGHT card, only after the user has guessed
+    const showBadge = side === 'right' && revealed && answerCorrect !== null;
+
     return (
     <motion.div
         className={`game-card game-card--${side}`}
@@ -72,18 +75,7 @@ export function GameCard({
             <span className="card-value-exact">
                 ({formatAdmissionsExact(value)} admissions)
             </span>
-
-            {/* Correct / wrong flash */}
-            {revealed && answerCorrect !== null && (
-                <motion.div
-                className={`card-result-badge ${answerCorrect ? 'correct' : 'wrong'}`}
-                initial={{ scale: 0, rotate: -15 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-                >
-                {answerCorrect ? '✓ Correct!' : '✗ Wrong'}
-                </motion.div>
-            )}
+            
             </motion.div>
         ) : (
             <motion.div
@@ -94,11 +86,28 @@ export function GameCard({
             >
             <span className="card-value-question">?</span>
             <span className="card-value-hint">
-                Total NHS admissions 1998–2025
+                Total NHS admissions 1998–2024
             </span>
             </motion.div>
-        )}
+            )}
         </AnimatePresence>
+
+        {/* Correct / Wrong badge*/}
+        <div className="card-badge-slot">
+            <AnimatePresence>
+            {showBadge && (
+                <motion.div
+                className={`card-result-badge ${answerCorrect ? 'correct' : 'wrong'}`}
+                initial={{ opacity: 0, y: -6, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+                >
+                {answerCorrect ? '✓ Correct!' : '✗ Wrong'}
+                </motion.div>
+            )}
+            </AnimatePresence>
+        </div>
 
         {/* Higher / Lower buttons */}
         {side === 'right' && !revealed && (
