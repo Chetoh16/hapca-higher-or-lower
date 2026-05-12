@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, ChevronDown, Play, Trophy, Info } from 'lucide-react';
+import { Activity, ChevronDown, Play, Trophy } from 'lucide-react';
 import type { MetricKey, GranularityKey } from '../types';
 import { METRICS, GRANULARITIES } from '../types';
 
@@ -61,7 +61,7 @@ export function HomePage({ onPlay, onLeaderboard, highScore }: Props) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.55, delay: 0.1 }}
         >
-          <div className="home-eyebrow">NHS Higher or Lower</div>
+          <div className="home-eyebrow">NHS HAPCA | Higher or Lower</div>
           <h1 className="home-headline">
             Which condition sends <em>more</em> people to hospital?
           </h1>
