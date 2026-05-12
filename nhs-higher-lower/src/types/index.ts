@@ -52,7 +52,7 @@ export const METRICS: MetricConfig[] = [
 ];
 
 export const GRANULARITIES: GranularityConfig[] = [
-  { key: 'block',    label: 'Blocks',     description: 'ICD-10 block ranges',           file: '/data/blocks.json' },
+  { key: 'block',    label: 'Blocks (Default)',     description: 'ICD-10 block ranges',           file: '/data/blocks.json' },
   { key: 'category', label: 'Categories', description: '3-character ICD-10 categories', file: '/data/categories.json' },
 ];
 
