@@ -82,15 +82,13 @@ function spawnParticle(
 
         shape: Math.random() > 0.35 ? 'rect' : 'circle',
 
-        // start invisible for fade-in
+        // start invisible to fade-in
         alpha: 0,
 
         age: 0,
-
-        // lasts longer
+        
         maxLife: rand(220, 340),
 
-        // fade timings
         fadeInDuration: 30,
         fadeOutDuration: 90,
     };
