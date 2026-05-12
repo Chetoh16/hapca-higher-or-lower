@@ -1,33 +1,42 @@
-
-// different columns can be added later, but these are the most interesting ones for the game
 export type MetricKey = 'fce_total' | 'fae_total' | 'fae_emergency' | 'fce_day_case';
+export type GranularityKey = 'block' | 'category';
 
 export interface MetricConfig {
-    key: MetricKey;
-    label: string;
-    description: string;
+  key: MetricKey;
+  label: string;
+  description: string;
+}
+
+export interface GranularityConfig {
+  key: GranularityKey;
+  label: string;
+  description: string;
+  file: string;
 }
 
 export const METRICS: MetricConfig[] = [
-    { key: 'fce_total',     label: 'Total Admissions',    description: 'Total Finished Consultant Episodes (FCE)' },
-    { key: 'fae_total',     label: 'Total Episodes',      description: 'Finished Admission Episodes (FAE)' },
-    { key: 'fae_emergency', label: 'Emergency Admissions', description: 'Emergency Finished Admission Episodes' },
-    { key: 'fce_day_case',  label: 'Day Cases',           description: 'Day Case FCE' },
+  { key: 'fce_total',      label: 'Total Admissions (FCE)',  description: 'Total Finished Consultant Episodes' },
+  { key: 'fae_total',      label: 'Total Episodes (FAE)',    description: 'Finished Admission Episodes' },
+  { key: 'fae_emergency',  label: 'Emergency Admissions',    description: 'Emergency Finished Admission Episodes' },
+  { key: 'fce_day_case',   label: 'Day Cases (FCE)',         description: 'Day Case Finished Consultant Episodes' },
 ];
 
-// subcategory is not included as that's not really interesting
+export const GRANULARITIES: GranularityConfig[] = [
+  { key: 'block',    label: 'Blocks',     description: 'ICD-10 block ranges',           file: '/data/blocks.json' },
+  { key: 'category', label: 'Categories', description: '3-character ICD-10 categories', file: '/data/categories.json' },
+];
+
 export interface Block {
-    chapter: string;
-    blockID: string;    
-    category: string;
-    fce_total: number;
-    // optional extra metrics (only present if data is extended)
-    fae_total?: number;
-    fae_emergency?: number;
-    fce_day_case?: number;
+  blockID:      string;
+  chapter:      string;
+  category:     string;
+  fce_total:    number;
+  fae_total?:   number;
+  fae_emergency?: number;
+  fce_day_case?:  number;
 }
 
-// used AI to turn the block codes into more human readable names and easier to play with
+// ai-generated human-readable display names for ICD-10 blocks
 export const BLOCK_DISPLAY_NAMES: Record<string, string> = {
   'C00-C97': 'All Cancers (Malignant Neoplasms)',
   'C00-C14': 'Head & Neck Cancers',
@@ -53,22 +62,22 @@ export const BLOCK_DISPLAY_NAMES: Record<string, string> = {
   'A00-A09': 'Intestinal Infectious Diseases',
   'A30-A49': 'Bacterial Diseases',
   'J09-J18': 'Influenza & Pneumonia',
-  'J40-J47': 'Chronic Respiratory Disease (COPD, Asthma)',
+  'J40-J47': 'Chronic Respiratory Disease (COPD & Asthma)',
   'J20-J22': 'Acute Bronchitis & Respiratory Infections',
   'J30-J39': 'Diseases of Nose, Throat & Larynx',
   'J00-J06': 'Acute Upper Respiratory Infections',
   'I20-I25': 'Coronary Heart Disease & Heart Attacks',
   'I30-I52': 'Other Heart Diseases',
   'I60-I69': 'Strokes & Cerebrovascular Disease',
-  'I80-I89': 'Vascular Disease (Veins, Arteries)',
+  'I80-I89': 'Vascular Disease (Veins & Arteries)',
   'K20-K31': 'Stomach & Oesophagus Disorders',
   'K40-K46': 'Hernia',
-  'K50-K52': 'Crohn\'s Disease & Colitis',
-  'K55-K64': 'Bowel Disease (incl. Appendix, Haemorrhoids)',
+  "K50-K52": "Crohn's Disease & Colitis",
+  'K55-K64': 'Bowel Disease (incl. Appendix & Haemorrhoids)',
   'K80-K87': 'Gallstones & Liver Disease',
   'K90-K93': 'Intestinal Malabsorption & Disorders',
   'K00-K14': 'Mouth & Teeth Disorders',
-  'M00-M25': 'Joint Diseases (Arthritis, Gout)',
+  'M00-M25': 'Joint Diseases (Arthritis & Gout)',
   'M40-M54': 'Back & Spine Disorders',
   'M60-M79': 'Soft Tissue & Muscle Disorders',
   'N17-N19': 'Kidney Failure',
@@ -84,38 +93,57 @@ export const BLOCK_DISPLAY_NAMES: Record<string, string> = {
   'R30-R39': 'Urinary Symptoms',
   'R50-R69': 'General Symptoms (Fever, Pain, Fatigue)',
   'S00-S09': 'Head Injuries',
+  'S10-S19': 'Neck Injuries',
+  'S20-S29': 'Chest Injuries',
+  'S30-S39': 'Abdominal & Pelvic Injuries',
+  'S40-S49': 'Shoulder & Upper Arm Injuries',
+  'S50-S59': 'Forearm & Elbow Injuries',
+  'S60-S69': 'Wrist & Hand Injuries',
   'S70-S79': 'Hip & Thigh Injuries',
+  'S80-S89': 'Knee & Lower Leg Injuries',
+  'S90-S99': 'Ankle & Foot Injuries',
+  'T00-T07': 'Multiple Body Region Injuries',
+  'T08-T14': 'Unspecified Body Part Injuries',
+  'T15-T19': 'Foreign Body Effects',
+  'T20-T32': 'Burns & Corrosions',
+  'T33-T35': 'Frostbite',
   'T36-T50': 'Poisoning by Drugs & Medications',
+  'T51-T65': 'Toxic Effects (Alcohol, Solvents, Pesticides)',
+  'T66-T78': 'Environmental & Other Trauma (Allergies, Radiation)',
+  'T79-T79': 'Complications of Trauma',
   'T80-T88': 'Complications of Medical Procedures',
+  'T90-T98': 'Sequelae of Injuries & Poisoning',
   'G40-G47': 'Epilepsy & Sleep Disorders',
+  'F00-F09': 'Organic Mental Disorders (incl. Dementia)',
   'H25-H28': 'Cataract & Lens Disorders',
   'L00-L08': 'Skin Infections',
-  'E70-E90': 'Metabolic Disorders (Obesity, Diabetes)',
+  'E70-E90': 'Metabolic Disorders (Obesity & Diabetes)',
   'Z00-Z13': 'Health Examinations & Screenings',
+  'Z20-Z29': 'Contact with Infectious Disease',
   'Z30-Z39': 'Contraception & Reproductive Health',
   'Z40-Z54': 'Medical Aftercare & Follow-up',
+  'Z55-Z65': 'Social & Environmental Factors',
+  'Z70-Z76': 'Health Advice & Counselling',
+  'Z80-Z99': 'Family History & Risk Factors',
+  'U00-U49': 'COVID-19 & Special Purpose Codes',
 };
 
-// game types
 export interface GameState {
-  phase: 'name-entry' | 'playing' | 'result' | 'leaderboard';
+  phase: 'home' | 'name-entry' | 'playing' | 'result' | 'leaderboard';
   playerName: string;
   score: number;
   highScore: number;
-
-  // left and right sections of the game to be compared with each other
-  currentLeft: Block | null;
+  currentLeft:  Block | null;
   currentRight: Block | null;
-
-  // don't use the same block twice in a game
   usedBlockIds: Set<string>;
   currentMetric: MetricKey;
+  currentGranularity: GranularityKey;
   isAnimating: boolean;
   lastAnswerCorrect: boolean | null;
 }
 
 export interface LeaderboardEntry {
-  name: string;
-  score: number;
+  name:      string;
+  score:     number;
   timestamp: string;
 }
