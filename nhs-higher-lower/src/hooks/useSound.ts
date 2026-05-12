@@ -25,11 +25,12 @@ import confetti2 from '../assets/sounds/confetti2.mp3';
 import confetti3 from '../assets/sounds/confetti3.mp3';
 import confetti4 from '../assets/sounds/confetti4.mp3';
 import confetti5 from '../assets/sounds/confetti5.mp3';
+import confetti6 from '../assets/sounds/confetti6.mp3';
 
 
 const correctSounds = [correct1, correct2, correct3, correct4, correct5];
 const wrongSounds = [wrong1, wrong2, wrong3, wrong4, wrong5, wrong6, wrong7];
-const confettiSounds = [confetti1, confetti2, confetti3, confetti4, confetti5];
+const confettiSounds = [confetti1, confetti2, confetti3, confetti4, confetti5, confetti6];
 
 export function useSound() {
   const cacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
