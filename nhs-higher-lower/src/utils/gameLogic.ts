@@ -15,6 +15,19 @@ export const SELECTED_FIRST_BLOCKS: string[] = [
   'M00-M25',    // Arthritis
 ];
 
+
+// remove unclassified
+const UNCLASSIFIED_CATEGORIES = new Set([
+  'Unclassified',
+  'unclassified',
+]);
+
+export function isUnclassified(block: Block): boolean {
+  // Filter by both category label AND chapter (Chapter XIX/XXI contain many unclassified)
+  return UNCLASSIFIED_CATEGORIES.has(block.category);
+}
+
+
 // formatting numbers for display
 export function formatAdmissions(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
@@ -31,7 +44,10 @@ export function pickRandom(
   blocks: Block[],
   excludeIds: Set<string>
 ): Block | null {
-  const pool = blocks.filter((b) => !excludeIds.has(b.blockID));
+  // Exclude used blocks AND unclassified ones
+  const pool = blocks.filter(
+    (b) => !excludeIds.has(b.blockID) && !isUnclassified(b),
+  );
   if (pool.length === 0) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -40,20 +56,7 @@ export function getMetricValue(block: Block, metric: MetricKey): number {
   return (block[metric] as number | undefined) ?? block.fce_total;
 }
 
-// Leaderboard — localStorage with JSON export support
-//
-// HOW IT WORKS:
-// - Scores are stored in localStorage under the key "nhs_leaderboard" as a
-//   JSON array of { name, score, timestamp }.
-// - On each page load the app reads from localStorage.
-// - "Export to JSON" triggers a browser download of the current leaderboard as
-//   leaderboard.json — you can open/edit this file to delete names, then
-//   re-import it via the Import button (or paste it back into localStorage).
-// - If a player enters the same name (exact case match) as an existing entry,
-//   their previous best score is displayed and they continue as that player.
-//   A new entry is still added when they finish (so history is preserved), but
-//   only the best score per name is shown prominently.
-//
+
 const LS_KEY = 'nhs_leaderboard';
 
 export function getLeaderboard(): LeaderboardEntry[] {
@@ -71,7 +74,7 @@ export function addToLeaderboard(entry: LeaderboardEntry): void {
   const board = getLeaderboard();
   board.push(entry);
   board.sort((a, b) => b.score - a.score);
-  // Keep top 50 entries total (preserves history across name)
+  // Keep top 50 entries total
   localStorage.setItem(LS_KEY, JSON.stringify(board.slice(0, 50)));
 }
 
@@ -102,18 +105,12 @@ export function exportLeaderboard(): void {
   a.click();
   URL.revokeObjectURL(url);
 }
-/**
- * Deletes ALL entries for a given player name (exact match) from localStorage.
- */
+
 export function deletePlayerFromLeaderboard(name: string): void {
   const board = getLeaderboard().filter((e) => e.name !== name);
   localStorage.setItem(LS_KEY, JSON.stringify(board));
 }
 
-/**
- * Imports a leaderboard from a JSON file, replacing the current one.
- * Call this after editing the exported file to remove entries.
- */
 export function importLeaderboard(file: File): Promise<void> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
