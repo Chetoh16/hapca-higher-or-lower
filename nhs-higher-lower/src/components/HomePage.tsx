@@ -15,7 +15,7 @@ const YOUTUBE_VIDEO_ID = '-iPyuSVeKGY';
 
 
 export function HomePage({ onPlay, onLeaderboard, highScore }: Props) {
-  const [metric, setMetric] = useState<MetricKey>('fce_total');
+  const [metric, setMetric] = useState<MetricKey>('fae_total');
   const [granularity, setGranularity] = useState<GranularityKey>('block');
   const [metricOpen, setMetricOpen] = useState(false);
   const [granOpen, setGranOpen] = useState(false);
