@@ -17,11 +17,12 @@ export interface GranularityConfig {
   file: string;
 }
 
+// optional tooltip explanation for future use
 export const METRICS: MetricConfig[] = [
   {
     key: 'fce_total',
     label: 'Total FCE (Default)',
-    description: 'Clinical care episodes provided to a patient under a hospital consultant.',
+    description: 'Clinical care episodes provided to a patient under a hospital consultant',
     tooltip:
       'A finished consultant episode (FCE) is a continuous period of admitted patient care under one consultant within one healthcare provider. FCEs are counted against the year in which they end. Figures do not represent the number of different patients, as a person may have more than one episode of care within the same stay in hospital or in different stays in the same year.',
   },
@@ -29,7 +30,7 @@ export const METRICS: MetricConfig[] = [
   {
     key: 'fae_total',
     label: 'Total FAE',
-    description: 'Hospital admissions.',
+    description: 'Hospital admissions',
     tooltip:
       'A finished admission episode (FAE) is the first period of admitted patient care under one consultant within one healthcare provider. FAEs are counted against the year in which the admission episode finishes. Admissions do not represent the number of patients, as a person may have more than one admission within the year.',
   },
@@ -37,7 +38,7 @@ export const METRICS: MetricConfig[] = [
   {
     key: 'fae_emergency',
     label: 'Emergency Admissions',
-    description: 'Emergency hospital admission episodes.',
+    description: 'Emergency hospital admission episodes',
     tooltip:
       'The count of admission episodes with an admission method code indicating the admission was an emergency admission.',
   },
