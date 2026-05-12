@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, ChevronRight } from 'lucide-react';
+import { Activity, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useSound } from '../hooks/useSound';
 
 interface Props {
   onStart: (name: string) => void;
+  onBack: () => void;
 }
 
-export function NameEntry({ onStart }: Props) {
+export function NameEntry({ onStart, onBack }: Props) {
   const [name, setName] = useState('');
   const { playTick } = useSound();
 
@@ -24,7 +25,17 @@ export function NameEntry({ onStart }: Props) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        {/* Logo */}
+        <motion.button
+          className="name-back-btn"
+          onClick={() => { playTick(); onBack(); }}
+          whileHover={{ x: -3 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <ArrowLeft size={15} /> Home
+        </motion.button>
+
         <motion.div
           className="logo-group"
           initial={{ opacity: 0, scale: 0.8 }}
@@ -68,10 +79,7 @@ export function NameEntry({ onStart }: Props) {
           />
           <motion.button
             className="start-btn"
-            onClick={() => {
-              playTick();
-              handleSubmit();
-            }}
+            onClick={() => { playTick(); handleSubmit(); }}
             disabled={name.trim().length === 0}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}

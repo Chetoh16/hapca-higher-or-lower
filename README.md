@@ -3,3 +3,8 @@
 
 ## NHS - HAPCA Higher or Lower 
 - This version of the game is made to be an interactive and engaging introduction to the Hospital Admitted Patient Care Activity (HAPCA) dataset. It is part of a bigger university project titled [Visualising Health Data - University of Nottingham](https://youtu.be/-iPyuSVeKGY). This game is made for the booth (13/05/26).
+
+
+## To-DO 
+- Make confetti last longer and sfx
+- Allow sfx to stack

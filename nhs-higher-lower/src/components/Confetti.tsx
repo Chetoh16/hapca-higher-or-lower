@@ -49,15 +49,15 @@ function spawnParticle(side: 'left' | 'right', canvasW: number, canvasH: number)
         x,
         y,
         vx: rand(-2.5, 2.5),
-        vy: rand(-8, -3),
+        vy: rand(-5, -2),
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         size: rand(6, 13),
         rotation: rand(0, Math.PI * 2),
         rotSpeed: rand(-0.15, 0.15),
         shape: Math.random() > 0.4 ? 'rect' : 'circle',
         alpha: 1,
-        life: 1,
-        decay: rand(0.008, 0.018),
+        life: 2,
+        decay: rand(0.001, 0.005),
     };
 }
 
@@ -101,7 +101,7 @@ export function Confetti({ trigger }: Props) {
 
             for (const p of particlesRef.current) {
                 // gravity
-                p.vy += 0.25; 
+                p.vy += 0.12; 
                 p.x  += p.vx;
                 p.y  += p.vy;
                 p.rotation += p.rotSpeed;

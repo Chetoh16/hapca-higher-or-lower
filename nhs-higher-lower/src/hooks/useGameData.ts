@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Block, MetricKey } from '../types';
+import type { Block, GranularityKey } from '../types';
 import { BLOCK_DISPLAY_NAMES } from '../types';
 
 interface RawRow {
@@ -10,10 +10,12 @@ interface RawRow {
   description: string;
   chapter: string;
   mortality_list_1: string;
+
   fce_total: number;
   fae_total: number;
   fae_emergency: number;
   fce_day_case: number;
+
   [key: string]: unknown;
 }
 
@@ -23,27 +25,33 @@ interface UseGameDataReturn {
   error: string | null;
 }
 
-
-// hook to load and process game data from the 1998–2024 json dataset
-export function useGameData(_metric: MetricKey): UseGameDataReturn {
+export function useGameData(
+  granularity: GranularityKey
+): UseGameDataReturn {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+
     fetch('/1998-2024-aggregate.json')
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+
         return r.json() as Promise<RawRow[]>;
       })
       .then((rows) => {
-        // aggregate: sum metrics per block (across all years & subcategories)
         const map = new Map<
           string,
           {
-            block: string;
+            blockID: string;
             chapter: string;
             category: string;
+
             fce_total: number;
             fae_total: number;
             fae_emergency: number;
@@ -52,8 +60,14 @@ export function useGameData(_metric: MetricKey): UseGameDataReturn {
         >();
 
         for (const row of rows) {
-          const key = row.block;
+          // choose aggregation key based on granularity
+          const key =
+            granularity === 'block'
+              ? row.block
+              : row.category;
+
           const existing = map.get(key);
+
           if (existing) {
             existing.fce_total += row.fce_total ?? 0;
             existing.fae_total += row.fae_total ?? 0;
@@ -61,9 +75,22 @@ export function useGameData(_metric: MetricKey): UseGameDataReturn {
             existing.fce_day_case += row.fce_day_case ?? 0;
           } else {
             map.set(key, {
-              block: row.block,
+              blockID: key,
+
               chapter: row.chapter,
-              category: row.mortality_list_1 ?? row.category,
+
+              category:
+                granularity === 'block'
+                  ? (
+                      BLOCK_DISPLAY_NAMES[row.block] ??
+                      row.mortality_list_1 ??
+                      row.block
+                    )
+                  : (
+                      row.description ??
+                      row.category
+                    ),
+
               fce_total: row.fce_total ?? 0,
               fae_total: row.fae_total ?? 0,
               fae_emergency: row.fae_emergency ?? 0,
@@ -72,16 +99,16 @@ export function useGameData(_metric: MetricKey): UseGameDataReturn {
           }
         }
 
-        // map to block type, using the human-readable display names
         const result: Block[] = Array.from(map.values())
-          .map((agg) => ({
-            blockID: agg.block,
-            chapter: agg.chapter,
-            category: BLOCK_DISPLAY_NAMES[agg.block] ?? agg.category,
-            fce_total: Math.round(agg.fce_total),
-            fae_total: Math.round(agg.fae_total),
-            fae_emergency: Math.round(agg.fae_emergency),
-            fce_day_case: Math.round(agg.fce_day_case),
+          .map((b) => ({
+            blockID: b.blockID,
+            chapter: b.chapter,
+            category: b.category,
+
+            fce_total: Math.round(b.fce_total),
+            fae_total: Math.round(b.fae_total),
+            fae_emergency: Math.round(b.fae_emergency),
+            fce_day_case: Math.round(b.fce_day_case),
           }))
           .filter((b) => b.fce_total > 0);
 
@@ -92,7 +119,11 @@ export function useGameData(_metric: MetricKey): UseGameDataReturn {
         setError(e.message);
         setLoading(false);
       });
-  }, []);
+  }, [granularity]);
 
-  return { blocks, loading, error };
+  return {
+    blocks,
+    loading,
+    error,
+  };
 }

@@ -1,9 +1,7 @@
 import { motion } from 'framer-motion';
-import { RotateCcw, Trophy, TrendingDown, UserCheck } from 'lucide-react';
+import { RotateCcw, Trophy, TrendingDown, UserCheck, Home } from 'lucide-react';
 import { useSound } from '../hooks/useSound';
 
-// placeholder loss images/gifs
-// add something funnier
 const LOSS_IMAGES: string[] = [
   'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNml1MWoxaTU0cnlrbWpocmtrdzI3dmR2eXg1amdsOXAzYWExcWI1OSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/qiw4VaWbXYDQqK6mgm/giphy.gif',
 ];
@@ -14,14 +12,10 @@ interface Props {
   score: number;
   highScore: number;
   playerName: string;
-
-   // go to name-entry screen
   onRestart: () => void;
-
-  // replay immediately as same player
   onContinueAs: () => void;
-
   onLeaderboard: () => void;
+  onHome: () => void;
 }
 
 export function ResultScreen({
@@ -31,6 +25,7 @@ export function ResultScreen({
   onRestart,
   onContinueAs,
   onLeaderboard,
+  onHome,
 }: Props) {
   const isNewHighScore = score > 0 && score >= highScore;
   const { playTick } = useSound();
@@ -48,7 +43,6 @@ export function ResultScreen({
         animate={{ scale: 1, y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        {/* Reaction gif */}
         <div className="result-img-wrap">
           <img src={chosenImg} alt="Game over reaction" className="result-img" />
         </div>
@@ -60,7 +54,6 @@ export function ResultScreen({
         <h2 className="result-title">Unlucky, {playerName}!</h2>
         <p className="result-subtitle">Your answer was wrong.</p>
 
-        {/* Scores */}
         <div className="result-scores">
           <div className="result-score-box">
             <span className="result-score-label">Your score</span>
@@ -96,16 +89,11 @@ export function ResultScreen({
           </motion.div>
         )}
 
-        {/* Buttons for replaying */}
         <motion.button
           className="result-btn result-btn--continue"
-          onClick={() => {
-            playTick();
-            onContinueAs();
-          }}
+          onClick={() => { playTick(); onContinueAs(); }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
-          
         >
           <UserCheck size={18} />
           Play again as {playerName}
@@ -114,10 +102,16 @@ export function ResultScreen({
         <div className="result-actions">
           <motion.button
             className="result-btn result-btn--secondary"
-            onClick={() => {
-              playTick();
-              onRestart();
-            }}
+            onClick={() => { playTick(); onHome(); }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+          >
+            <Home size={16} />
+            Home
+          </motion.button>
+          <motion.button
+            className="result-btn result-btn--secondary"
+            onClick={() => { playTick(); onRestart(); }}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
           >
@@ -126,10 +120,7 @@ export function ResultScreen({
           </motion.button>
           <motion.button
             className="result-btn result-btn--secondary"
-            onClick={() => {
-              playTick();
-              onLeaderboard();
-            }}
+            onClick={() => { playTick(); onLeaderboard(); }}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
           >
