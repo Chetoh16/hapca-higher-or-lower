@@ -9,3 +9,4 @@
 
 ## To-DO 
 - Light Mode
+- Hard Mode (Subcategory)
