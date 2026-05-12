@@ -23,7 +23,7 @@ import {
 import type { Block, GameState, MetricKey, GranularityKey } from './types';
 import './App.css';
 
-const DEFAULT_METRIC: MetricKey = 'fce_total';
+const DEFAULT_METRIC: MetricKey = 'fae_total';
 const DEFAULT_GRANULARITY: GranularityKey = 'block';
 
 function App() {
