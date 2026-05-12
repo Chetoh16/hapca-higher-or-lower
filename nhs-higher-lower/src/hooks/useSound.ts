@@ -12,12 +12,15 @@ import wrong1 from '../assets/sounds/wrong1.mp3';
 import wrong2 from '../assets/sounds/wrong2.mp3';
 import wrong3 from '../assets/sounds/wrong3.mp3';
 import wrong4 from '../assets/sounds/wrong4.mp3';
+import wrong5 from '../assets/sounds/wrong5.mp3';
+import wrong6 from '../assets/sounds/wrong6.mp3';
+import wrong7 from '../assets/sounds/wrong7.mp3';
 
 // Click/tick
 import tick from '../assets/sounds/tick.mp3';
 
 const correctSounds = [correct1, correct2, correct3, correct4, correct5];
-const wrongSounds = [wrong1, wrong2, wrong3, wrong4];
+const wrongSounds = [wrong1, wrong2, wrong3, wrong4, wrong5, wrong6, wrong7];
 
 export function useSound() {
   const cacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
