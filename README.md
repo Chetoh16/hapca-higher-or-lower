@@ -8,5 +8,4 @@
 
 
 ## To-DO 
-- Make confetti last longer and sfx
-- Allow sfx to stack
+- Light Mode

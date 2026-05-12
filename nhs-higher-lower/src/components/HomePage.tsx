@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, ChevronDown, Play, Trophy } from 'lucide-react';
+import { Activity, ChevronDown, Play, Trophy, Info } from 'lucide-react';
 import type { MetricKey, GranularityKey } from '../types';
 import { METRICS, GRANULARITIES } from '../types';
 
@@ -77,7 +77,7 @@ export function HomePage({ onPlay, onLeaderboard, highScore }: Props) {
 
             {/* Metric dropdown */}
             <div className="home-dropdown-wrap">
-              <div className="home-dropdown-label">Measure</div>
+              <div className="home-dropdown-label">Metric</div>
               <div className="home-dropdown" onClick={() => { setMetricOpen((o) => !o); setGranOpen(false); }}>
                 <div className="home-dropdown-selected">
                   <span className="home-dropdown-value">{selectedMetric.label}</span>
@@ -107,7 +107,7 @@ export function HomePage({ onPlay, onLeaderboard, highScore }: Props) {
 
             {/* Granularity dropdown */}
             <div className="home-dropdown-wrap">
-              <div className="home-dropdown-label">Detail level</div>
+              <div className="home-dropdown-label">Granularity</div>
               <div className="home-dropdown" onClick={() => { setGranOpen((o) => !o); setMetricOpen(false); }}>
                 <div className="home-dropdown-selected">
                   <span className="home-dropdown-value">{selectedGran.label}</span>

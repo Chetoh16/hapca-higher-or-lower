@@ -5,6 +5,9 @@ export interface MetricConfig {
   key: MetricKey;
   label: string;
   description: string;
+
+  // long-form NHS definition
+  tooltip: string;
 }
 
 export interface GranularityConfig {
@@ -15,10 +18,37 @@ export interface GranularityConfig {
 }
 
 export const METRICS: MetricConfig[] = [
-  { key: 'fce_total',      label: 'Total FCE',  description: 'Total Finished Consultant Episodes' },
-  { key: 'fae_total',      label: 'Total FAE',    description: 'Finished Admission Episodes' },
-  { key: 'fae_emergency',  label: 'Emergency Admissions',    description: 'Emergency Finished Admission Episodes' },
-  { key: 'fce_day_case',   label: 'Day Cases (FCE)',         description: 'Day Case Finished Consultant Episodes' },
+  {
+    key: 'fce_total',
+    label: 'Total FCE (Default)',
+    description: 'Clinical care episodes provided to a patient under a hospital consultant.',
+    tooltip:
+      'A finished consultant episode (FCE) is a continuous period of admitted patient care under one consultant within one healthcare provider. FCEs are counted against the year in which they end. Figures do not represent the number of different patients, as a person may have more than one episode of care within the same stay in hospital or in different stays in the same year.',
+  },
+
+  {
+    key: 'fae_total',
+    label: 'Total FAE',
+    description: 'Hospital admissions.',
+    tooltip:
+      'A finished admission episode (FAE) is the first period of admitted patient care under one consultant within one healthcare provider. FAEs are counted against the year in which the admission episode finishes. Admissions do not represent the number of patients, as a person may have more than one admission within the year.',
+  },
+
+  {
+    key: 'fae_emergency',
+    label: 'Emergency Admissions',
+    description: 'Emergency hospital admission episodes.',
+    tooltip:
+      'The count of admission episodes with an admission method code indicating the admission was an emergency admission.',
+  },
+
+  {
+    key: 'fce_day_case',
+    label: 'Day Case Episodes',
+    description: 'Patients admitted and discharged the same day.',
+    tooltip:
+      'Day cases are patients who have been admitted for treatment just for the day. There are therefore always single episode spells with a duration of zero days. The intention is for treatment to be concluded in one day. If, unexpectedly, the patient is kept overnight, it must be re-classed as an ordinary admission.',
+  },
 ];
 
 export const GRANULARITIES: GranularityConfig[] = [
