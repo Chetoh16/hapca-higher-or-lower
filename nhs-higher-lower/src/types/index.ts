@@ -15,8 +15,8 @@ export interface GranularityConfig {
 }
 
 export const METRICS: MetricConfig[] = [
-  { key: 'fce_total',      label: 'Total Admissions (FCE)',  description: 'Total Finished Consultant Episodes' },
-  { key: 'fae_total',      label: 'Total Episodes (FAE)',    description: 'Finished Admission Episodes' },
+  { key: 'fce_total',      label: 'Total FCE',  description: 'Total Finished Consultant Episodes' },
+  { key: 'fae_total',      label: 'Total FAE',    description: 'Finished Admission Episodes' },
   { key: 'fae_emergency',  label: 'Emergency Admissions',    description: 'Emergency Finished Admission Episodes' },
   { key: 'fce_day_case',   label: 'Day Cases (FCE)',         description: 'Day Case Finished Consultant Episodes' },
 ];
