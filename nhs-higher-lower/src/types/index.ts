@@ -46,7 +46,7 @@ export const METRICS: MetricConfig[] = [
   {
     key: 'fce_day_case',
     label: 'Day Case Episodes',
-    description: 'Patients admitted and discharged the same day.',
+    description: 'Patients admitted and discharged the same day',
     tooltip:
       'Day cases are patients who have been admitted for treatment just for the day. There are therefore always single episode spells with a duration of zero days. The intention is for treatment to be concluded in one day. If, unexpectedly, the patient is kept overnight, it must be re-classed as an ordinary admission.',
   },
