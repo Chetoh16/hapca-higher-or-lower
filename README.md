@@ -1,3 +1,5 @@
+![Home Page Screenshot](/nhs-higher-lower/src/assets/images/home-page-screenshot.png)
+
 ## Higher or Lower
 - Higher or Lower is originally a game where you're presented with two options: one with the amount of times it's been searched up on Google, and one without. You then have to choose if the second option has a *higher* or *lower* amount of searches. 
 
