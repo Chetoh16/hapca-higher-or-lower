@@ -179,7 +179,7 @@ export function HomePage({ onPlay, onLeaderboard, highScore }: Props) {
 
       {/* Footer */}
       <footer className="home-footer">
-        <span className="home-footer-author">By : Ege Cetin (psyec7)</span>
+        <span className="home-footer-author">By : Ege Cetin</span>
         <span className="home-footer-dataset">NHS HAPCA Hospital Admissions Dataset · 1998–2024 </span>
         <span className="home-footer-author">Team 3 - Visualisation of Health Data</span>
       </footer>
