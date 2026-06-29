@@ -1,98 +1,106 @@
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { create, verify } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// the ! after the env var is a non-null assertion operator, which tells TypeScript that this value will not be null or undefinedsu
+// verifies a token that was issued by start-session.
+async function verifyToken(token: string, secret: string): Promise<{ username: string; startedAt: number }> {
+  const [payloadB64, sigB64] = token.split('.');
+
+  // decode the payload (data) back to a JSON string
+  const payload = atob(payloadB64); 
+
+  // converts text into bytes because crypto functions work with binary data
+  const enc = new TextEncoder();
+
+  // import the secret as a key for verification
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+
+  // decode the signature from base64 back to raw bytes
+  const sig = Uint8Array.from(atob(sigB64), c => c.charCodeAt(0));
+
+  // check the signature is valid for this payload
+  const valid = await crypto.subtle.verify('HMAC', key, sig, enc.encode(payload));
+  if (!valid){
+    throw new Error('Invalid token - get a better one');
+  } 
+  
+  // converts the text payload into a JavaScript object
+  return JSON.parse(payload);
+}
+
 const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!, 
+  Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-// starts HTTP server
-// whenever a request comes in, this function is called with the request object
+// starts an HTTP endpoint
 Deno.serve(async (req) => {
 
-  if (req.method === 'OPTIONS') {
+  // browsers send a test request before the real request
+  if (req.method === 'OPTIONS'){
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // only allow POST requests which would be the user submitting their score after a game
-  // rejects GET, PUT, etc.
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', {
-      status: 405,
-      headers: corsHeaders,
-    });
-  }
-
-  // get the JSON content from the request body 
-  const { username, score, metric, granularity, sessionToken } = await req.json();
-
-  // validate the input data
-  if (typeof username !== 'string' || username.trim().length === 0 || username.length > 24) {
-    return new Response('Invalid username, make a better one', {
-      status: 400,
-      headers: corsHeaders,
-    });
-  }
-  if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 1000) {
-    return new Response('Invalid score, what are you even doing?', {
-      status: 400,
-      headers: corsHeaders,
-    });
-  }
-
-  // sessionToken was issued by a `start-session` function when the game began,
-  // signed with a server-only secret, and contains `startedAt` and `username`.
-  // verify the session token using the server secret, and extract the payload (which is the data being passed in the token)
-  let payload: { startedAt: number; username: string };
-  try {
-    payload = await verify(sessionToken, Deno.env.get('SESSION_SECRET')!, 'HS512');
+  // rejects GET requests or anything else
+  if (req.method !== 'POST'){
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   } 
-  // HS512 is a hashing algorithm used to sign the token, and the server secret is used to verify that the token was indeed issued by the server and not tampered with.
-  // it just encrypts the data in the token and allows the server to verify that the token is valid and was issued by the server.
-  catch {
-    return new Response('Invalid or missing session', {
-      status: 401,
-      headers: corsHeaders,
-    });
+
+  try {
+
+    // reads data sent from React
+    const { username, score, metric, granularity, sessionToken } = await req.json();
+
+    // basic input validation before touching the database
+    if (typeof username !== 'string' || username.trim().length === 0 || username.length > 24){
+      return new Response('Invalid username - try harder', { status: 400, headers: corsHeaders });
+    }
+
+    if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 1000){
+      return new Response('Invalid score - buddy come on', { status: 400, headers: corsHeaders });
+    }
+
+    // verify this was a real game and not someone entering 9999 for their score (undertale reference)
+    const secret = Deno.env.get('SESSION_SECRET')!;
+    let payload: { username: string; startedAt: number };
+    try {
+      payload = await verifyToken(sessionToken, secret);
+    } 
+    catch {
+      return new Response('Invalid or missing session', { status: 401, headers: corsHeaders });
+    }
+
+    // basic anti-cheat
+    // each answer takes at least 0.5 seconds so the score has to be reasonable
+    const elapsedSeconds = (Date.now() - payload.startedAt) / 1000;
+    if (score > elapsedSeconds / 0.5)
+      return new Response('Score too high for elapsed time', { status: 400, headers: corsHeaders });
+
+    // insert the score into the leaderboard
+    const { error } = await supabase
+      .from('leaderboard')
+      .insert({ username: username.trim(), score, metric, granularity });
+
+    if (error){
+      return new Response(error.message, { status: 500, headers: corsHeaders });
+    } 
+
+    // success huzzah
+    return new Response(
+      JSON.stringify({ ok: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error(error);
+    return new Response(
+      JSON.stringify({ error: String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-
-  // calculate how many seconds it has been since the game started
-  const elapsedSeconds = (Date.now() - payload.startedAt) / 1000;
-
-  // it takes about at least half a second to get a point
-  const MIN_SECONDS_PER_POINT = 0.5; 
-
-  // if the score is too high for the time elapsed, reject it as cheating
-  if (score > elapsedSeconds / MIN_SECONDS_PER_POINT) {
-    return new Response('Be real, you did not get all that score in that time', {
-      status: 400,
-      headers: corsHeaders,
-    });
-  }
-
-  // the function supabase.from(...).insert(...) always returns and object with
-  // 1 - data 
-  // 2- error
-  // this function inserts a new row into the `leaderboard` table with the username, score, metric, and granularity.
-  const { error } = await supabase.from('leaderboard').insert({
-    username: username.trim(),
-    score,
-    metric,
-    granularity,
-  });
-
-  // if there's an error send a handle it big boy
-  if (error) {
-    return new Response(error.message, {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-  // if everything is good, return a success response
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
 });

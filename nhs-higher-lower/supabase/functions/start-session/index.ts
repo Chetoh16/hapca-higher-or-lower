@@ -1,49 +1,73 @@
-// used for creating a session token when the game starts, which is then used to verify the score submission later
-import { create } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
-// starts an API endpoint (HTTP server) that listens for requests
-// whenever a request is made, this function is called with the request object
-Deno.serve(async (req) => {
+// creates a token for a game session.
+// token = encoded data + signature
+async function makeToken(username: string, secret: string): Promise<string> {
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  // store player name and game start time
+  const payload = JSON.stringify({ username, startedAt: Date.now() });
 
-  // get the username from the req (request body) which is sent from the frontend when the game starts
-  const { username } = await req.json();
+  // converts text into bytes for crypto functions
+  const enc = new TextEncoder();
 
-  // a JWT (JSON Web Token) is a string that contains data + a digital signature
-  // the token is built by using a secret key and an encoding algorithm (HS512) to sign the data, 
-  // which is then sent to the client (frontend) and can be verified later by the server using the same secret key
-  const token = await create(
-
-    // defines signing algorithm + token type
-    { alg: 'HS512', typ: 'JWT' }, 
-
-    // data stored inside the token (payload)
-    { startedAt: Date.now(), username },
-
-    // secret used to sign (prevents tampering)
-    Deno.env.get('SESSION_SECRET')!,
+  // turn the secret into a crypto key
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,      // key cannot be read back out
+    ['sign']    // this key can only be used for signing, not verification
   );
 
-  /*
-    HTTP response status codes
+  // create a signature from the payload
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload));
 
-    Informational responses (100 – 199)
-    Successful responses (200 – 299)
-    Redirection messages (300 – 399)
-    Client error responses (400 – 499)
-    Server error responses (500 – 599)
-  */
+  // convert signature to base64 text
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(sig)));
 
-  // return the token to the client (frontend) in the response body.
-  // turns JavaScript object into JSON (because HTTP responses must be text, not raw objects);
-  // the client can then use this token to submit their score later, 
-  // and the server can verify that the token is valid and was issued by the server.
-  return new Response(JSON.stringify({ sessionToken: token }), {
-    status: 200, 
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  // return payload + signature
+  return btoa(payload) + '.' + b64;
+}
+
+// starts the API endpoint
+Deno.serve(async (req) => {
+
+  // andle the browser's CORS preflight check
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  try {
+    const { username } = await req.json();
+
+    // stop empty usernames
+    if (!username) return new Response(
+      JSON.stringify({ error: 'Give us your username' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+    // get secret stored in Supabase
+    const secret = Deno.env.get('SESSION_SECRET');
+    if (!secret) throw new Error('SESSION_SECRET environment variable is missing');
+
+    // create a token tied to this username and the current time.
+    // the frontend sends this token back when submitting a score,
+    // so submit-score can verify the game session was legitimate.
+    const sessionToken = await makeToken(username, secret);
+
+    // send token back to frontend
+    return new Response(
+      JSON.stringify({ sessionToken }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+
+    // log unexpected errors
+    console.error(error);
+
+    // send error response
+    return new Response(
+      JSON.stringify({ error: String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
 });
