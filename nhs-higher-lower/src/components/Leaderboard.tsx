@@ -33,8 +33,8 @@ function formatTime(iso: string): string {
 function dedupeByName(entries: LeaderboardEntry[]): LeaderboardEntry[] {
   const seen = new Map<string, LeaderboardEntry>();
   for (const e of entries) {
-    const existing = seen.get(e.name);
-    if (!existing || e.score > existing.score) seen.set(e.name, e);
+    const existing = seen.get(e.username);
+    if (!existing || e.score > existing.score) seen.set(e.username, e);
   }
   return Array.from(seen.values()).sort((a, b) => b.score - a.score);
 }
@@ -61,7 +61,7 @@ export function Leaderboard({
 
   const handleDelete = (name: string) => {
     deletePlayerFromLeaderboard(name);
-    setLocalEntries((prev) => prev.filter((e) => e.name !== name));
+    setLocalEntries((prev) => prev.filter((e) => e.username !== username));
     setExpandedName(null);
     // notify parent to re-read 
     onImported();
@@ -102,12 +102,12 @@ export function Leaderboard({
             </motion.div>
           ) : (
             displayEntries.map((entry, i) => {
-              const isPlayer = entry.name === currentPlayerName;
-              const isExpanded = expandedName === entry.name;
+              const isPlayer = entry.username === currentPlayerName;
+              const isExpanded = expandedName === entry.username;
 
               return (
                 <motion.div
-                  key={entry.name}
+                  key={entry.username}
                   className={`lb-row-wrap ${isExpanded ? 'lb-row-wrap--expanded' : ''}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -119,18 +119,18 @@ export function Leaderboard({
                     className={`lb-row lb-row--clickable ${isPlayer ? 'lb-row--you' : ''} ${isExpanded ? 'lb-row--open' : ''}`}
                     onClick={() => {
                       playTick();
-                      handleRowClick(entry.name);
+                      handleRowClick(entry.username);
                     }}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRowClick(entry.name)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRowClick(entry.username)}
                     aria-expanded={isExpanded}
                   >
                     <div className="lb-rank">
                       {i < 3 ? RANK_ICONS[i] : <span className="lb-rank-num">{i + 1}</span>}
                     </div>
                     <div className="lb-name">
-                      {entry.name}
+                      {entry.username}
                       {isPlayer && <span className="lb-you-tag">YOU</span>}
                     </div>
                     <div className="lb-time">{formatTime(entry.timestamp)}</div>
@@ -157,12 +157,12 @@ export function Leaderboard({
                       >
                         <div className="lb-delete-inner">
                           <span className="lb-delete-label">
-                            Remove <strong>{entry.name}</strong> from the leaderboard?
+                            Remove <strong>{entry.username}</strong> from the leaderboard?
                           </span>
                           <div className="lb-delete-btns">
                             <button
                               className="lb-delete-confirm"
-                              onClick={(e) => {playTick(); e.stopPropagation(); handleDelete(entry.name); }}
+                              onClick={(e) => {playTick(); e.stopPropagation(); handleDelete(entry.username); }}
                             >
                               <Trash2 size={14} /> Delete
                             </button>

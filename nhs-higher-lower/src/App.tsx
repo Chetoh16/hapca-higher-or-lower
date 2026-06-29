@@ -14,13 +14,14 @@ import {
   SELECTED_FIRST_BLOCKS,
   pickRandom,
   getMetricValue,
-  addToLeaderboard,
-  getLeaderboard,
   getHighScore,
   getPlayerBestScore,
   isUnclassified,
+  startSession, 
+  getLeaderboard,
+  submitScore,
 } from './utils/gameLogic';
-import type { Block, GameState, MetricKey, GranularityKey } from './types';
+import type { Block, GameState, MetricKey, GranularityKey, LeaderboardEntry} from './types';
 import './App.css';
 
 const DEFAULT_METRIC: MetricKey = 'fae_total';
@@ -31,11 +32,14 @@ function App() {
   const { blocks, loading, error } = useGameData(currentGranularity);
   const { playCorrect, playWrong } = useSound();
 
+  // the signed token needed to submit a score
+  const [sessionToken, setSessionToken] = useState('');
+
   const [state, setState] = useState<GameState>({
     phase: 'home',
     playerName: '',
     score: 0,
-    highScore: getHighScore(),
+    highScore: 0,
     currentLeft: null,
     currentRight: null,
     usedBlockIds: new Set(),
@@ -49,8 +53,24 @@ function App() {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const prevScoreRef = useRef(0);
 
-  const [lbKey, setLbKey] = useState(0);
   const selectedQueueRef = useRef<string[]>([...SELECTED_FIRST_BLOCKS]);
+
+  // fetches the global leaderboard from the server and refreshes the local cache/highScore.
+  // called on load, whenever the leaderboard screen is opened, and after a score submits.
+  const refreshLeaderboard = useCallback(async () => {
+    try {
+      const entries = await getLeaderboard();
+      setLeaderboardEntries(entries);
+      setState((s) => ({ ...s, highScore: getHighScore() }));
+    } catch (err) {
+      console.error('Failed to load leaderboard', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshLeaderboard();
+  }, [refreshLeaderboard]);
+
 
   const pickNext = useCallback(
     (exclude: Set<string>): Block | null => {
@@ -110,11 +130,22 @@ function App() {
   );
 
   const handleStart = useCallback(
-    (name: string) => {
-      startGame(name, state.currentMetric, state.currentGranularity);
+    async (name: string) => {
+
+      const token = await startSession(name);
+
+      setSessionToken(token);
+
+      startGame(
+        name,
+        state.currentMetric,
+        state.currentGranularity
+      );
+
     },
-    [startGame, state.currentMetric, state.currentGranularity],
+    [startGame,state.currentMetric,state.currentGranularity]
   );
+
 
   const handleContinueAs = useCallback(() => {
     startGame(state.playerName, state.currentMetric, state.currentGranularity);
@@ -152,17 +183,16 @@ function App() {
 
     const timer = setTimeout(() => {
       if (!state.lastAnswerCorrect) {
-        addToLeaderboard({
-          name: state.playerName,
+        await submitScore(
+        {
+          username: state.playerName,
           score: state.score,
-          timestamp: new Date().toISOString(),
-        });
-        setState((s) => ({
-          ...s,
-          phase: 'result',
-          highScore: getHighScore(),
-          isAnimating: false,
-        }));
+          metric: state.currentMetric,
+          granularity: state.currentGranularity
+        },
+        sessionToken
+        );
+
       } else {
         setState((s) => {
           const newScore = s.score + 1;

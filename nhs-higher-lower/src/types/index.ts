@@ -172,9 +172,9 @@ export interface GameState {
 }
 
 export interface LeaderboardEntry {
-  username:      string;
-  score:     number;
-  metric:    MetricKey;
+  username: string;
+  score: number;
+  metric: MetricKey;
   granularity: GranularityKey;
   created_at: string;
 }
