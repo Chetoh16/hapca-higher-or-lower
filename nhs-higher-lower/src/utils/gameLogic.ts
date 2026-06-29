@@ -1,5 +1,9 @@
 import type { Block, LeaderboardEntry, MetricKey } from '../types';
 
+import { supabase } from './supabaseClient';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+
 // interesting blocks will show up first to make the game more engaging. 
 // these appear in the first 5–10 rounds; order matters
 export const SELECTED_FIRST_BLOCKS: string[] = [
@@ -55,6 +59,55 @@ export function pickRandom(
 export function getMetricValue(block: Block, metric: MetricKey): number {
   return (block[metric] as number | undefined) ?? block.fce_total;
 }
+
+
+// Leaderboard
+export async function getLeaderboardFromSupabase(): Promise<LeaderboardEntry[]> {
+
+  const res = await fetch(`${FUNCTIONS_URL}/get-leaderboard`);
+
+  if (!res.ok){
+    throw new Error('Failed to fetch leaderboard');
+  }
+
+  // converts the HTTP response body into a JavaScript object
+  const data: { leaderboard: LeaderboardEntry[] } = await res.json();
+
+  // returns leaderboard but if it's missing then returns an empty array
+  return data.leaderboard ?? [];   
+}
+
+// Submit Score
+export async function submitScore(entry, sessionToken) {
+
+  const res = await fetch(`${FUNCTIONS_URL}/submit-score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...entry, sessionToken }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to submit score');
+  }
+
+}
+
+// Start Session
+export async function startSession(name: string): Promise<string> {
+  const res = await fetch(`${FUNCTIONS_URL}/start-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to start session');
+  }
+
+  const data: { sessionToken: string } = await res.json();
+  return data.sessionToken;
+}
+
 
 
 const LS_KEY = 'nhs_leaderboard';

@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
 
   const { data, error } = await supabase
     .from('leaderboard')
-    .select('username, score, metric, granularity')
+    .select('username, score, metric, granularity, created_at')
     .order('score', { ascending: false }) // order by score descending
     .limit(10) // limit to top 10 scores
   
