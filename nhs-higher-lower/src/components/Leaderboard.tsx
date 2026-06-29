@@ -90,8 +90,7 @@ export function Leaderboard({
           ) : (
             displayEntries.map((entry, i) => {
               const isPlayer = entry.username === currentPlayerName;
-              const isExpanded = expandedName === entry.username;
-
+              
               return (
                 <motion.div
                   key={entry.username}

@@ -1,6 +1,4 @@
 import type { Block, LeaderboardEntry, MetricKey } from '../types';
-
-import { supabase } from './supabaseClient';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
@@ -63,11 +61,11 @@ export function getMetricValue(block: Block, metric: MetricKey): number {
 
 
 // Start Session
-export async function startSession(name: string): Promise<string> {
+export async function startSession(username: string): Promise<string> {
   const res = await fetch(`${FUNCTIONS_URL}/start-session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ username }),
   });
 
   if (!res.ok) {
