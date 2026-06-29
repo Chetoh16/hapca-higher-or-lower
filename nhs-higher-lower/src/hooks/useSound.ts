@@ -5,7 +5,6 @@ import correct1 from '../assets/sounds/correct1.mp3';
 import correct2 from '../assets/sounds/correct2.mp3';
 import correct3 from '../assets/sounds/correct3.mp3';
 import correct4 from '../assets/sounds/correct4.mp3';
-import correct5 from '../assets/sounds/correct5.mp3';
 
 // wrong sounds
 import wrong1 from '../assets/sounds/wrong1.mp3';
@@ -28,7 +27,7 @@ import confetti5 from '../assets/sounds/confetti5.mp3';
 import confetti6 from '../assets/sounds/confetti6.mp3';
 
 
-const correctSounds = [correct1, correct2, correct3, correct4, correct5];
+const correctSounds = [correct1, correct2, correct3, correct4];
 const wrongSounds = [wrong1, wrong2, wrong3, wrong4, wrong5, wrong6, wrong7];
 const confettiSounds = [confetti1, confetti2, confetti3, confetti4, confetti5, confetti6];
 

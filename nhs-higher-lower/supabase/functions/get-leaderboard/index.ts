@@ -1,6 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { create, verify } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
 
 // the ! after the env var is a non-null assertion operator, which tells TypeScript that this value will not be null or undefinedsu
 const supabase = createClient(
