@@ -61,36 +61,6 @@ export function getMetricValue(block: Block, metric: MetricKey): number {
 }
 
 
-// Leaderboard
-export async function getLeaderboardFromSupabase(): Promise<LeaderboardEntry[]> {
-
-  const res = await fetch(`${FUNCTIONS_URL}/get-leaderboard`);
-
-  if (!res.ok){
-    throw new Error('Failed to fetch leaderboard');
-  }
-
-  // converts the HTTP response body into a JavaScript object
-  const data: { leaderboard: LeaderboardEntry[] } = await res.json();
-
-  // returns leaderboard but if it's missing then returns an empty array
-  return data.leaderboard ?? [];   
-}
-
-// Submit Score
-export async function submitScore(entry, sessionToken) {
-
-  const res = await fetch(`${FUNCTIONS_URL}/submit-score`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...entry, sessionToken }),
-  });
-
-  if (!res.ok) {
-    throw new Error('Failed to submit score');
-  }
-
-}
 
 // Start Session
 export async function startSession(name: string): Promise<string> {
@@ -110,74 +80,67 @@ export async function startSession(name: string): Promise<string> {
 
 
 
-const LS_KEY = 'nhs_leaderboard';
+// Submit Score
+export async function submitScore(
+  entry: Omit<LeaderboardEntry, 'created_at'>, // the database handles creation time so no need to send it + prevents fake data
+  sessionToken: string  // security token proving valid game session
+){
 
-export function getLeaderboard(): LeaderboardEntry[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const all: LeaderboardEntry[] = raw ? JSON.parse(raw) : [];
-    // Sort by score descending
-    return all.sort((a, b) => b.score - a.score);
-  } catch {
-    return [];
+  const res = await fetch(`${FUNCTIONS_URL}/submit-score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...entry, sessionToken }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to submit score');
   }
+  
+  // refresh cache after submit so UI stays in sync
+  await getLeaderboard();
 }
 
-export function addToLeaderboard(entry: LeaderboardEntry): void {
-  const board = getLeaderboard();
-  board.push(entry);
-  board.sort((a, b) => b.score - a.score);
-  // Keep top 50 entries total
-  localStorage.setItem(LS_KEY, JSON.stringify(board.slice(0, 50)));
+
+// Leaderboard
+
+// cache it so it doesn't have to make too many api calls
+let leaderboardCache: LeaderboardEntry[] = [];
+
+export function getCachedLeaderboard(): LeaderboardEntry[] {
+  return leaderboardCache;
 }
+
+export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
+
+  const res = await fetch(`${FUNCTIONS_URL}/get-leaderboard`);
+
+  if (!res.ok){
+    throw new Error('Failed to fetch leaderboard');
+  }
+
+  // converts the HTTP response body into a JavaScript object
+  const data: { leaderboard: LeaderboardEntry[] } = await res.json();
+
+  // returns leaderboardCache but if it's missing then returns an empty array
+  leaderboardCache = data.leaderboard ?? [];
+  return leaderboardCache;
+}
+
+
 
 export function getHighScore(): number {
-  const board = getLeaderboard();
-  return board.length > 0 ? board[0].score : 0;
+  if (!leaderboardCache.length) return 0;
+
+  // return highest score and 0 if it doesn't exist
+  return leaderboardCache.length > 0 ? leaderboardCache[0].score : 0;
 }
 
-export function getPlayerBestScore(name: string): number {
-  const board = getLeaderboard();
-  const entries = board.filter((e) => e.name === name);
+export function getPlayerBestScore(username: string): number {
+  const entries = leaderboardCache.filter((e) => e.username === username);
   return entries.length > 0 ? entries[0].score : 0;
 }
 
-export function playerExists(name: string): boolean {
-  return getLeaderboard().some((e) => e.name === name);
+export function playerExists(username: string): boolean {
+  return leaderboardCache.some((e) => e.username === username);
 }
 
-// Export / Import
-
-export function exportLeaderboard(): void {
-  const data = getLeaderboard();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'leaderboard.json';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-export function deletePlayerFromLeaderboard(name: string): void {
-  const board = getLeaderboard().filter((e) => e.name !== name);
-  localStorage.setItem(LS_KEY, JSON.stringify(board));
-}
-
-export function importLeaderboard(file: File): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string) as LeaderboardEntry[];
-        data.sort((a, b) => b.score - a.score);
-        localStorage.setItem(LS_KEY, JSON.stringify(data.slice(0, 50)));
-        resolve();
-      } catch {
-        reject(new Error('Invalid JSON file'));
-      }
-    };
-    reader.onerror = () => reject(new Error('File read error'));
-    reader.readAsText(file);
-  });
-}
