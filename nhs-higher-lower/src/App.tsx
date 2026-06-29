@@ -89,7 +89,7 @@ function App() {
   );
 
   const startGame = useCallback(
-    (name: string, metric: MetricKey, granularity: GranularityKey) => {
+    (username: string, metric: MetricKey, granularity: GranularityKey) => {
       selectedQueueRef.current = [...SELECTED_FIRST_BLOCKS];
       prevScoreRef.current = 0;
       const used = new Set<string>();
@@ -103,9 +103,9 @@ function App() {
       setState((s) => ({
         ...s,
         phase: 'playing',
-        playerName: name,
+        playerName: username,
         score: 0,
-        highScore: Math.max(getHighScore(), getPlayerBestScore(name)),
+        highScore: Math.max(getHighScore(), getPlayerBestScore(username)),
         currentLeft: left,
         currentRight: right,
         usedBlockIds: used,

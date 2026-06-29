@@ -28,13 +28,6 @@ Deno.serve(async (req) => {
     Deno.env.get('SESSION_SECRET')!,
   );
 
-  if (error) {
-    return new Response(error.message, {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-
   /*
     HTTP response status codes
 

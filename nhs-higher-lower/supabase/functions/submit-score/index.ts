@@ -18,17 +18,28 @@ Deno.serve(async (req) => {
 
   // only allow POST requests which would be the user submitting their score after a game
   // rejects GET, PUT, etc.
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeaders,
+    });
+  }
 
   // get the JSON content from the request body 
   const { username, score, metric, granularity, sessionToken } = await req.json();
 
   // validate the input data
   if (typeof username !== 'string' || username.trim().length === 0 || username.length > 24) {
-    return new Response('Invalid username, make a better one', { status: 400 });
+    return new Response('Invalid username, make a better one', {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
   if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 1000) {
-    return new Response('Invalid score, what are you even doing?', { status: 400 });
+    return new Response('Invalid score, what are you even doing?', {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 
   // sessionToken was issued by a `start-session` function when the game began,
@@ -41,7 +52,10 @@ Deno.serve(async (req) => {
   // HS512 is a hashing algorithm used to sign the token, and the server secret is used to verify that the token was indeed issued by the server and not tampered with.
   // it just encrypts the data in the token and allows the server to verify that the token is valid and was issued by the server.
   catch {
-    return new Response('Invalid or missing session', { status: 401 });
+    return new Response('Invalid or missing session', {
+      status: 401,
+      headers: corsHeaders,
+    });
   }
 
   // calculate how many seconds it has been since the game started
@@ -52,7 +66,10 @@ Deno.serve(async (req) => {
 
   // if the score is too high for the time elapsed, reject it as cheating
   if (score > elapsedSeconds / MIN_SECONDS_PER_POINT) {
-    return new Response('Be real, you did not get all that score in that time', { status: 400 });
+    return new Response('Be real, you did not get all that score in that time', {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 
   // the function supabase.from(...).insert(...) always returns and object with
