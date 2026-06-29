@@ -134,11 +134,11 @@ function App() {
 
   // every new game has its own session token 
   const handleStart = useCallback(
-    async (name: string) => {
+    async (username: string) => {
       try {
-        const token = await startSession(name);
+        const token = await startSession(username);
         setSessionToken(token);
-        startGame(name, state.currentMetric, state.currentGranularity);
+        startGame(username, state.currentMetric, state.currentGranularity);
       } catch (err) {
         console.error('Failed to start session', err);
       }

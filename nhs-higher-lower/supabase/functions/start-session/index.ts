@@ -1,9 +1,14 @@
 // used for creating a session token when the game starts, which is then used to verify the score submission later
 import { create } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 // starts an API endpoint (HTTP server) that listens for requests
 // whenever a request is made, this function is called with the request object
 Deno.serve(async (req) => {
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   // get the username from the req (request body) which is sent from the frontend when the game starts
   const { username } = await req.json();
@@ -23,6 +28,13 @@ Deno.serve(async (req) => {
     Deno.env.get('SESSION_SECRET')!,
   );
 
+  if (error) {
+    return new Response(error.message, {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+
   /*
     HTTP response status codes
 
@@ -37,5 +49,8 @@ Deno.serve(async (req) => {
   // turns JavaScript object into JSON (because HTTP responses must be text, not raw objects);
   // the client can then use this token to submit their score later, 
   // and the server can verify that the token is valid and was issued by the server.
-  return new Response(JSON.stringify({ sessionToken: token }), { status: 200 });
+  return new Response(JSON.stringify({ sessionToken: token }), {
+    status: 200, 
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });

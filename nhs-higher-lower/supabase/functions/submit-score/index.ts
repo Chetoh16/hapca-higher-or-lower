@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { create, verify } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 // the ! after the env var is a non-null assertion operator, which tells TypeScript that this value will not be null or undefinedsu
 const supabase = createClient(
@@ -10,6 +11,10 @@ const supabase = createClient(
 // starts HTTP server
 // whenever a request comes in, this function is called with the request object
 Deno.serve(async (req) => {
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   // only allow POST requests which would be the user submitting their score after a game
   // rejects GET, PUT, etc.
@@ -62,9 +67,15 @@ Deno.serve(async (req) => {
   });
 
   // if there's an error send a handle it big boy
-  if (error){
-    return new Response(error.message, { status: 500 });
-  } 
+  if (error) {
+    return new Response(error.message, {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
   // if everything is good, return a success response
-  return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });
