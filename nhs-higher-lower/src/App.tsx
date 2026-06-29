@@ -129,42 +129,46 @@ function App() {
     [],
   );
 
+  // every new game has its own session token 
   const handleStart = useCallback(
     async (name: string) => {
-
-      const token = await startSession(name);
-
-      setSessionToken(token);
-
-      startGame(
-        name,
-        state.currentMetric,
-        state.currentGranularity
-      );
-
+      try {
+        const token = await startSession(name);
+        setSessionToken(token);
+        startGame(name, state.currentMetric, state.currentGranularity);
+      } catch (err) {
+        console.error('Failed to start session', err);
+      }
     },
-    [startGame,state.currentMetric,state.currentGranularity]
+    [startGame, state.currentMetric, state.currentGranularity],
   );
 
 
-  const handleContinueAs = useCallback(() => {
-    startGame(state.playerName, state.currentMetric, state.currentGranularity);
+  const handleContinueAs = useCallback(async () => {
+    try {
+      const token = await startSession(state.playerName);
+      setSessionToken(token);
+      startGame(state.playerName, state.currentMetric, state.currentGranularity);
+    } catch (err) {
+      console.error('Failed to start session', err);
+    }
   }, [startGame, state.playerName, state.currentMetric, state.currentGranularity]);
 
   const handleRestart = useCallback(() => {
-    setState((s) => ({ ...s, phase: 'name-entry', score: 0, highScore: getHighScore() }));
+    setState((s) => ({ ...s, phase: 'name-entry', score: 0 }));
   }, []);
 
   const handleHome = useCallback(() => {
-    setState((s) => ({ ...s, phase: 'home', highScore: getHighScore() }));
-  }, []);
+    setState((s) => ({ ...s, phase: 'home' }));
+    refreshLeaderboard();
+  }, [refreshLeaderboard]);
 
   const handleGuess = useCallback((guess: 'higher' | 'lower') => {
     setState((s) => {
       if (!s.currentLeft || !s.currentRight || s.isAnimating) return s;
-      const leftVal  = getMetricValue(s.currentLeft, s.currentMetric);
+      const leftVal = getMetricValue(s.currentLeft, s.currentMetric);
       const rightVal = getMetricValue(s.currentRight, s.currentMetric);
-      const correct  = guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
+      const correct = guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
       return { ...s, isAnimating: true, lastAnswerCorrect: correct };
     });
   }, []);
@@ -181,63 +185,90 @@ function App() {
 
     const delay = state.lastAnswerCorrect ? 1200 : 1400;
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (!state.lastAnswerCorrect) {
-        await submitScore(
-        {
-          username: state.playerName,
-          score: state.score,
-          metric: state.currentMetric,
-          granularity: state.currentGranularity
-        },
-        sessionToken
-        );
+        try {
+          await submitScore(
+            {
+              username: state.playerName,
+              score: state.score,
+              metric: state.currentMetric,
+              granularity: state.currentGranularity,
+            },
+            sessionToken,
+          );
+        } catch (err) {
+          console.error('Failed to submit score', err);
+        }
 
-      } else {
-        setState((s) => {
-          const newScore = s.score + 1;
+        setState((s) => ({
+          ...s,
+          phase: 'result',
+          highScore: getHighScore(),
+          isAnimating: false,
+        }));
+        return;
+      }
 
-          // Confetti on multiples of 5
-          if (newScore % 5 === 0) {
-            setConfettiTrigger((t) => t + 1);
-          }
+      setState((s) => {
+        const newScore = s.score + 1;
 
-          const newUsed = new Set(s.usedBlockIds);
-          const newLeft  = s.currentRight!;
-          const newRight = pickNext(newUsed);
+        if (newScore % 5 === 0) {
+          setConfettiTrigger((t) => t + 1);
+        }
 
-          if (!newRight) {
-            addToLeaderboard({
-              name: s.playerName,
+        const newUsed = new Set(s.usedBlockIds);
+        const newLeft = s.currentRight!;
+        const newRight = pickNext(newUsed);
+
+        // ran out of diseases to compare so treat it as the end of the run
+        if (!newRight) {
+          submitScore(
+            {
+              username: s.playerName,
               score: newScore,
-              timestamp: new Date().toISOString(),
-            });
-            return {
-              ...s,
-              score: newScore,
-              phase: 'result',
-              highScore: getHighScore(),
-              isAnimating: false,
-            };
-          }
+              metric: s.currentMetric,
+              granularity: s.currentGranularity,
+            },
+            sessionToken,
+          ).catch((err) => console.error('Failed to submit score', err));
 
-          newUsed.add(newRight.blockID);
           return {
             ...s,
             score: newScore,
-            currentLeft: newLeft,
-            currentRight: newRight,
-            usedBlockIds: newUsed,
+            phase: 'result',
+            highScore: Math.max(getHighScore(), newScore),
             isAnimating: false,
-            lastAnswerCorrect: null,
           };
-        });
-      }
+        }
+
+        newUsed.add(newRight.blockID);
+        return {
+          ...s,
+          score: newScore,
+          currentLeft: newLeft,
+          currentRight: newRight,
+          usedBlockIds: newUsed,
+          isAnimating: false,
+          lastAnswerCorrect: null,
+        };
+      });
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [state.isAnimating, state.lastAnswerCorrect, pickNext, playCorrect, playWrong]);
-
+  }, [
+    state.isAnimating,
+    state.lastAnswerCorrect,
+    pickNext,
+    playCorrect,
+    playWrong,
+    sessionToken,
+    state.playerName,
+    state.score,
+    state.currentMetric,
+    state.currentGranularity,
+  ]);
+  
   if (loading) {
     return (
       <div className="app-loading">
@@ -256,7 +287,7 @@ function App() {
 
   return (
     <div className="app-root">
-      {/* Confetti canvas — sits above everything, pointer-events none */}
+      {/* Confetti canvas - sits above everything, pointer-events none */}
       <Confetti trigger={confettiTrigger} />
 
       <AnimatePresence mode="wait">
@@ -264,7 +295,10 @@ function App() {
           <HomePage
             key="home"
             onPlay={handleHomePlay}
-            onLeaderboard={() => setState((s) => ({ ...s, phase: 'leaderboard' }))}
+            onLeaderboard={() => {
+              refreshLeaderboard();
+              setState((s) => ({ ...s, phase: 'leaderboard' }));
+            }}
             highScore={state.highScore}
           />
         )}
@@ -313,19 +347,22 @@ function App() {
             playerName={state.playerName}
             onRestart={handleRestart}
             onContinueAs={handleContinueAs}
-            onLeaderboard={() => setState((s) => ({ ...s, phase: 'leaderboard' }))}
+            onLeaderboard={() => {
+              refreshLeaderboard();
+              setState((s) => ({ ...s, phase: 'leaderboard' }));
+            }}
             onHome={handleHome}
           />
         )}
 
         {state.phase === 'leaderboard' && (
           <Leaderboard
-            key={`leaderboard-${lbKey}`}
-            entries={getLeaderboard()}
+            key="leaderboard"
+            entries={leaderboardEntries}
             currentPlayerName={state.playerName}
             onBack={() => setState((s) => ({ ...s, phase: state.score > 0 ? 'result' : 'home' }))}
             onRestart={handleRestart}
-            onImported={() => setLbKey((k) => k + 1)}
+            onRefresh={refreshLeaderboard}
           />
         )}
       </AnimatePresence>
