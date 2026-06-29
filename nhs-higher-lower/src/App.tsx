@@ -17,11 +17,11 @@ import {
   getHighScore,
   getPlayerBestScore,
   isUnclassified,
-  startSession, 
+  startSession,
   getLeaderboard,
   submitScore,
 } from './utils/gameLogic';
-import type { Block, GameState, MetricKey, GranularityKey, LeaderboardEntry} from './types';
+import type { Block, GameState, MetricKey, GranularityKey, LeaderboardEntry } from './types';
 import './App.css';
 
 const DEFAULT_METRIC: MetricKey = 'fae_total';
@@ -34,6 +34,9 @@ function App() {
 
   // the signed token needed to submit a score
   const [sessionToken, setSessionToken] = useState('');
+
+  // the actual leaderboard rows fetched from the server (Leaderboard.tsx just renders this)
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
 
   const [state, setState] = useState<GameState>({
     phase: 'home',
