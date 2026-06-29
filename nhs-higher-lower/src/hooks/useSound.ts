@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 
 // C=correct sounds
 import correct1 from '../assets/sounds/correct1.mp3';
@@ -32,30 +32,27 @@ const wrongSounds = [wrong1, wrong2, wrong3, wrong4, wrong5, wrong6, wrong7];
 const confettiSounds = [confetti1, confetti2, confetti3, confetti4, confetti5, confetti6];
 
 export function useSound() {
-  const cacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
-
   const getRandom = (arr: string[]) => {
     return arr[Math.floor(Math.random() * arr.length)];
   };
 
-  const play = (src: string, volume = 1) => {
-    try {
-      if (!cacheRef.current.has(src)) {
+  // load all sounds once when hook starts
+  useEffect(() => {
+    [...correctSounds, ...wrongSounds, ...confettiSounds, tick]
+      .forEach(src => {
         const audio = new Audio(src);
         audio.preload = 'auto';
-        cacheRef.current.set(src, audio);
-      }
+        audio.load();
+      });
+  }, []);
 
-      // Clone allows overlapping playback
-      const sound = cacheRef.current.get(src)!.cloneNode() as HTMLAudioElement;
+  const play = (src: string, volume = 1) => {
+    const sound = new Audio(src);
+    sound.volume = volume;
 
-      sound.volume = volume;
-      sound.currentTime = 0;
-
-      void sound.play();
-    } catch {
-      // Ignore audio errors
-    }
+    void sound.play().catch(() => {
+      // ignore autoplay / browser restrictions
+    });
   };
 
   const playCorrect = useCallback(() => {
