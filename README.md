@@ -11,7 +11,17 @@
 - Light Mode
 - Hard Mode (Subcategory)
 - Background music
+- Animated background
+    - Slight diagonal movement
+- Information pages
+    - More information on hover
+    - Connect with search engine or AI to explain what the diseases are
+- Favicon and unique logo
 
+
+
+# Quick Access
+- The game is deployed on netlify so just click this [link](https://higherorlowerhapca.netlify.app) to play.
 
 # Installation Guide
 ## 1. Clone the Repository
