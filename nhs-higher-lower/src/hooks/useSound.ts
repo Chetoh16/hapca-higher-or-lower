@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 // C=correct sounds
 import correct1 from '../assets/sounds/correct1.mp3';

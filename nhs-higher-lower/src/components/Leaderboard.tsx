@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, RotateCcw, ArrowLeft, RefreshCw } from 'lucide-react';
 import type { LeaderboardEntry } from '../types';
