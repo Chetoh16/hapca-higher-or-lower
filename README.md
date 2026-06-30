@@ -17,6 +17,7 @@
     - More information on hover
     - Connect with search engine or AI to explain what the diseases are
 - Favicon and unique logo
+- Make Predetermined questions mode optional
 
 
 
