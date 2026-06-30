@@ -14,13 +14,14 @@ import {
   SELECTED_FIRST_BLOCKS,
   pickRandom,
   getMetricValue,
-  addToLeaderboard,
-  getLeaderboard,
   getHighScore,
   getPlayerBestScore,
   isUnclassified,
+  startSession,
+  getLeaderboard,
+  submitScore,
 } from './utils/gameLogic';
-import type { Block, GameState, MetricKey, GranularityKey } from './types';
+import type { Block, GameState, MetricKey, GranularityKey, LeaderboardEntry } from './types';
 import './App.css';
 
 const DEFAULT_METRIC: MetricKey = 'fae_total';
@@ -31,11 +32,17 @@ function App() {
   const { blocks, loading, error } = useGameData(currentGranularity);
   const { playCorrect, playWrong } = useSound();
 
+  // the signed token needed to submit a score
+  const [sessionToken, setSessionToken] = useState('');
+
+  // the actual leaderboard rows fetched from the server (Leaderboard.tsx just renders this)
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
+
   const [state, setState] = useState<GameState>({
     phase: 'home',
     playerName: '',
     score: 0,
-    highScore: getHighScore(),
+    highScore: 0,
     currentLeft: null,
     currentRight: null,
     usedBlockIds: new Set(),
@@ -49,8 +56,24 @@ function App() {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const prevScoreRef = useRef(0);
 
-  const [lbKey, setLbKey] = useState(0);
   const selectedQueueRef = useRef<string[]>([...SELECTED_FIRST_BLOCKS]);
+
+  // fetches the global leaderboard from the server and refreshes the local cache/highScore.
+  // called on load, whenever the leaderboard screen is opened, and after a score submits.
+  const refreshLeaderboard = useCallback(async () => {
+    try {
+      const entries = await getLeaderboard();
+      setLeaderboardEntries(entries);
+      setState((s) => ({ ...s, highScore: getHighScore() }));
+    } catch (err) {
+      console.error('Failed to load leaderboard', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshLeaderboard();
+  }, [refreshLeaderboard]);
+
 
   const pickNext = useCallback(
     (exclude: Set<string>): Block | null => {
@@ -66,7 +89,7 @@ function App() {
   );
 
   const startGame = useCallback(
-    (name: string, metric: MetricKey, granularity: GranularityKey) => {
+    (username: string, metric: MetricKey, granularity: GranularityKey) => {
       selectedQueueRef.current = [...SELECTED_FIRST_BLOCKS];
       prevScoreRef.current = 0;
       const used = new Set<string>();
@@ -80,9 +103,9 @@ function App() {
       setState((s) => ({
         ...s,
         phase: 'playing',
-        playerName: name,
+        playerName: username,
         score: 0,
-        highScore: Math.max(getHighScore(), getPlayerBestScore(name)),
+        highScore: Math.max(getHighScore(), getPlayerBestScore(username)),
         currentLeft: left,
         currentRight: right,
         usedBlockIds: used,
@@ -109,31 +132,46 @@ function App() {
     [],
   );
 
+  // every new game has its own session token 
   const handleStart = useCallback(
-    (name: string) => {
-      startGame(name, state.currentMetric, state.currentGranularity);
+    async (username: string) => {
+      try {
+        const token = await startSession(username);
+        setSessionToken(token);
+        startGame(username, state.currentMetric, state.currentGranularity);
+      } catch (err) {
+        console.error('Failed to start session', err);
+      }
     },
     [startGame, state.currentMetric, state.currentGranularity],
   );
 
-  const handleContinueAs = useCallback(() => {
-    startGame(state.playerName, state.currentMetric, state.currentGranularity);
+
+  const handleContinueAs = useCallback(async () => {
+    try {
+      const token = await startSession(state.playerName);
+      setSessionToken(token);
+      startGame(state.playerName, state.currentMetric, state.currentGranularity);
+    } catch (err) {
+      console.error('Failed to start session', err);
+    }
   }, [startGame, state.playerName, state.currentMetric, state.currentGranularity]);
 
   const handleRestart = useCallback(() => {
-    setState((s) => ({ ...s, phase: 'name-entry', score: 0, highScore: getHighScore() }));
+    setState((s) => ({ ...s, phase: 'name-entry', score: 0 }));
   }, []);
 
   const handleHome = useCallback(() => {
-    setState((s) => ({ ...s, phase: 'home', highScore: getHighScore() }));
-  }, []);
+    setState((s) => ({ ...s, phase: 'home' }));
+    refreshLeaderboard();
+  }, [refreshLeaderboard]);
 
   const handleGuess = useCallback((guess: 'higher' | 'lower') => {
     setState((s) => {
       if (!s.currentLeft || !s.currentRight || s.isAnimating) return s;
-      const leftVal  = getMetricValue(s.currentLeft, s.currentMetric);
+      const leftVal = getMetricValue(s.currentLeft, s.currentMetric);
       const rightVal = getMetricValue(s.currentRight, s.currentMetric);
-      const correct  = guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
+      const correct = guess === 'higher' ? rightVal >= leftVal : rightVal <= leftVal;
       return { ...s, isAnimating: true, lastAnswerCorrect: correct };
     });
   }, []);
@@ -150,64 +188,90 @@ function App() {
 
     const delay = state.lastAnswerCorrect ? 1200 : 1400;
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (!state.lastAnswerCorrect) {
-        addToLeaderboard({
-          name: state.playerName,
-          score: state.score,
-          timestamp: new Date().toISOString(),
-        });
+        try {
+          await submitScore(
+            {
+              username: state.playerName,
+              score: state.score,
+              metric: state.currentMetric,
+              granularity: state.currentGranularity,
+            },
+            sessionToken,
+          );
+        } catch (err) {
+          console.error('Failed to submit score', err);
+        }
+
         setState((s) => ({
           ...s,
           phase: 'result',
           highScore: getHighScore(),
           isAnimating: false,
         }));
-      } else {
-        setState((s) => {
-          const newScore = s.score + 1;
+        return;
+      }
 
-          // Confetti on multiples of 5
-          if (newScore % 5 === 0) {
-            setConfettiTrigger((t) => t + 1);
-          }
+      setState((s) => {
+        const newScore = s.score + 1;
 
-          const newUsed = new Set(s.usedBlockIds);
-          const newLeft  = s.currentRight!;
-          const newRight = pickNext(newUsed);
+        if (newScore % 5 === 0) {
+          setConfettiTrigger((t) => t + 1);
+        }
 
-          if (!newRight) {
-            addToLeaderboard({
-              name: s.playerName,
+        const newUsed = new Set(s.usedBlockIds);
+        const newLeft = s.currentRight!;
+        const newRight = pickNext(newUsed);
+
+        // ran out of diseases to compare so treat it as the end of the run
+        if (!newRight) {
+          submitScore(
+            {
+              username: s.playerName,
               score: newScore,
-              timestamp: new Date().toISOString(),
-            });
-            return {
-              ...s,
-              score: newScore,
-              phase: 'result',
-              highScore: getHighScore(),
-              isAnimating: false,
-            };
-          }
+              metric: s.currentMetric,
+              granularity: s.currentGranularity,
+            },
+            sessionToken,
+          ).catch((err) => console.error('Failed to submit score', err));
 
-          newUsed.add(newRight.blockID);
           return {
             ...s,
             score: newScore,
-            currentLeft: newLeft,
-            currentRight: newRight,
-            usedBlockIds: newUsed,
+            phase: 'result',
+            highScore: Math.max(getHighScore(), newScore),
             isAnimating: false,
-            lastAnswerCorrect: null,
           };
-        });
-      }
+        }
+
+        newUsed.add(newRight.blockID);
+        return {
+          ...s,
+          score: newScore,
+          currentLeft: newLeft,
+          currentRight: newRight,
+          usedBlockIds: newUsed,
+          isAnimating: false,
+          lastAnswerCorrect: null,
+        };
+      });
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [state.isAnimating, state.lastAnswerCorrect, pickNext, playCorrect, playWrong]);
-
+  }, [
+    state.isAnimating,
+    state.lastAnswerCorrect,
+    pickNext,
+    playCorrect,
+    playWrong,
+    sessionToken,
+    state.playerName,
+    state.score,
+    state.currentMetric,
+    state.currentGranularity,
+  ]);
+  
   if (loading) {
     return (
       <div className="app-loading">
@@ -226,7 +290,7 @@ function App() {
 
   return (
     <div className="app-root">
-      {/* Confetti canvas — sits above everything, pointer-events none */}
+      {/* Confetti canvas - sits above everything, pointer-events none */}
       <Confetti trigger={confettiTrigger} />
 
       <AnimatePresence mode="wait">
@@ -234,7 +298,10 @@ function App() {
           <HomePage
             key="home"
             onPlay={handleHomePlay}
-            onLeaderboard={() => setState((s) => ({ ...s, phase: 'leaderboard' }))}
+            onLeaderboard={() => {
+              refreshLeaderboard();
+              setState((s) => ({ ...s, phase: 'leaderboard' }));
+            }}
             highScore={state.highScore}
           />
         )}
@@ -283,19 +350,22 @@ function App() {
             playerName={state.playerName}
             onRestart={handleRestart}
             onContinueAs={handleContinueAs}
-            onLeaderboard={() => setState((s) => ({ ...s, phase: 'leaderboard' }))}
+            onLeaderboard={() => {
+              refreshLeaderboard();
+              setState((s) => ({ ...s, phase: 'leaderboard' }));
+            }}
             onHome={handleHome}
           />
         )}
 
         {state.phase === 'leaderboard' && (
           <Leaderboard
-            key={`leaderboard-${lbKey}`}
-            entries={getLeaderboard()}
+            key="leaderboard"
+            entries={leaderboardEntries}
             currentPlayerName={state.playerName}
             onBack={() => setState((s) => ({ ...s, phase: state.score > 0 ? 'result' : 'home' }))}
             onRestart={handleRestart}
-            onImported={() => setLbKey((k) => k + 1)}
+            onRefresh={refreshLeaderboard}
           />
         )}
       </AnimatePresence>

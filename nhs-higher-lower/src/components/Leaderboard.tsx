@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Medal, RotateCcw, ArrowLeft, Download, X, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Trophy, Medal, RotateCcw, ArrowLeft, RefreshCw } from 'lucide-react';
 import type { LeaderboardEntry } from '../types';
-import { exportLeaderboard, deletePlayerFromLeaderboard } from '../utils/gameLogic';
 import { useSound } from '../hooks/useSound';
 
 
@@ -11,13 +10,13 @@ interface Props {
   currentPlayerName: string;
   onBack: () => void;
   onRestart: () => void;
-  onImported: () => void; // still used after delete to refresh parent
+  onRefresh: () => void;
 }
 
 const RANK_ICONS = [
   <Trophy key="1" size={18} className="rank-icon rank-icon--gold" />,
-  <Medal  key="2" size={18} className="rank-icon rank-icon--silver" />,
-  <Medal  key="3" size={18} className="rank-icon rank-icon--bronze" />,
+  <Medal key="2" size={18} className="rank-icon rank-icon--silver" />,
+  <Medal key="3" size={18} className="rank-icon rank-icon--bronze" />,
 ];
 
 function formatTime(iso: string): string {
@@ -27,14 +26,18 @@ function formatTime(iso: string): string {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
-  } catch { return iso; }
+  } catch {
+     return iso; 
+  }
 }
 
-function dedupeByName(entries: LeaderboardEntry[]): LeaderboardEntry[] {
+// the server returns one row per submission, not per player, so the same player can appear more than once. 
+// keep just their best row.
+function dedupeByUsername(entries: LeaderboardEntry[]): LeaderboardEntry[] {
   const seen = new Map<string, LeaderboardEntry>();
   for (const e of entries) {
-    const existing = seen.get(e.name);
-    if (!existing || e.score > existing.score) seen.set(e.name, e);
+    const existing = seen.get(e.username);
+    if (!existing || e.score > existing.score) seen.set(e.username, e);
   }
   return Array.from(seen.values()).sort((a, b) => b.score - a.score);
 }
@@ -44,28 +47,12 @@ export function Leaderboard({
   currentPlayerName,
   onBack,
   onRestart,
-  onImported,
+  onRefresh,
 }: Props) {
-  // Which row is expanded (showing the delete confirm)
-  const [expandedName, setExpandedName] = useState<string | null>(null);
-  // Local copy so deletions are instant without waiting for parent re-render
-  const [localEntries, setLocalEntries] = useState<LeaderboardEntry[]>(entries);
 
-  const displayEntries = dedupeByName(localEntries);
+  const displayEntries = dedupeByUsername(entries);
 
   const { playTick } = useSound();
-
-  const handleRowClick = (name: string) => {
-    setExpandedName((prev) => (prev === name ? null : name));
-  };
-
-  const handleDelete = (name: string) => {
-    deletePlayerFromLeaderboard(name);
-    setLocalEntries((prev) => prev.filter((e) => e.name !== name));
-    setExpandedName(null);
-    // notify parent to re-read 
-    onImported();
-  };
 
   return (
     <motion.div
@@ -84,7 +71,7 @@ export function Leaderboard({
         <div className="lb-header">
           <Trophy size={28} className="lb-header-icon" />
           <h2 className="lb-title">Leaderboard</h2>
-          <p className="lb-subtitle">Best score per player - click a name to remove</p>
+          <p className="lb-subtitle">Top scores from every player</p>
         </div>
 
         {/* Table */}
@@ -102,94 +89,43 @@ export function Leaderboard({
             </motion.div>
           ) : (
             displayEntries.map((entry, i) => {
-              const isPlayer = entry.name === currentPlayerName;
-              const isExpanded = expandedName === entry.name;
-
+              const isPlayer = entry.username === currentPlayerName;
+              
               return (
                 <motion.div
-                  key={entry.name}
-                  className={`lb-row-wrap ${isExpanded ? 'lb-row-wrap--expanded' : ''}`}
+                  key={entry.username}
+                  className="lb-row-wrap"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04, duration: 0.3 }}
                   layout
                 >
                   {/* Main row*/}
-                  <div
-                    className={`lb-row lb-row--clickable ${isPlayer ? 'lb-row--you' : ''} ${isExpanded ? 'lb-row--open' : ''}`}
-                    onClick={() => {
-                      playTick();
-                      handleRowClick(entry.name);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRowClick(entry.name)}
-                    aria-expanded={isExpanded}
-                  >
+                  <div className={`lb-row ${isPlayer ? 'lb-row--you' : ''}`}>
                     <div className="lb-rank">
                       {i < 3 ? RANK_ICONS[i] : <span className="lb-rank-num">{i + 1}</span>}
                     </div>
                     <div className="lb-name">
-                      {entry.name}
+                      {entry.username}
                       {isPlayer && <span className="lb-you-tag">YOU</span>}
                     </div>
-                    <div className="lb-time">{formatTime(entry.timestamp)}</div>
+                    <div className="lb-time">{formatTime(entry.created_at)}</div>
                     <div className="lb-score">{entry.score}</div>
-                    {/* Chevron indicator */}
-                    <motion.div
-                      className="lb-row-chevron"
-                      animate={{ rotate: isExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      ›
-                    </motion.div>
                   </div>
-
-                  {/* Delete drawer*/}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        className="lb-delete-drawer"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: 'easeInOut' }}
-                      >
-                        <div className="lb-delete-inner">
-                          <span className="lb-delete-label">
-                            Remove <strong>{entry.name}</strong> from the leaderboard?
-                          </span>
-                          <div className="lb-delete-btns">
-                            <button
-                              className="lb-delete-confirm"
-                              onClick={(e) => {playTick(); e.stopPropagation(); handleDelete(entry.name); }}
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                            <button
-                              className="lb-delete-cancel"
-                              onClick={(e) => {playTick(); e.stopPropagation(); setExpandedName(null); }}
-                            >
-                              <X size={14} /> Cancel
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </motion.div>
               );
             })
           )}
         </div>
 
-        {/* Export row */}
+        {/* Refresh leaderboard */}
         <div className="lb-data-row">
-          <button className="lb-data-btn" onClick={() => {
-            playTick();
-            exportLeaderboard();
-          }} title="Download leaderboard.json">
-            <Download size={14} /> Export JSON
+          <button
+            className="lb-data-btn"
+            onClick={() => { playTick(); onRefresh(); }}
+            title="Refresh leaderboard"
+          >
+            <RefreshCw size={14} /> Refresh
           </button>
         </div>
 
