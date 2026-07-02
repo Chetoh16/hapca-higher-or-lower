@@ -10,7 +10,6 @@ interface Props {
   highScore: number;
 }
 
-// Replace with your real YouTube video ID
 const YOUTUBE_VIDEO_ID = '-iPyuSVeKGY';
 
 
